@@ -67,3 +67,38 @@ Condições: motor **1.1.0** (`ExitSpec`; V0 idêntico), partição de pesquisa 
 10. Momentum de fim de dia, rompimento de range de 30 min e gap-and-go não mostraram edge; a direção do gap foi pior que o acaso.
 11. Baixa volatilidade perde em 4 arquiteturas (mesma amostra): o filtro é **data-informed**.
 
+### Aprendizados de processo da RUN-0002 (valem para as próximas runs)
+12. **O gargalo é o ciclo do agente, não o simulador**: ~1–1,5 min por experimento contra ~10 s de replay com placebo. Ganho de vazão vem de **lotes pré-registrados** (hipóteses independentes escritas antes, rodadas em um único script) e de registro/relatório semiautomáticos; experimentos dependentes seguem sequenciais.
+13. **O fechamento real levou ~4,5 min** (relatório, livro, pytest completo, commit), não os ~8 min estimados. Iniciar os testes de vazamento **em segundo plano no setup** e usar **toda a janela** de experimentos (na Run 2 a busca parou ~6 min antes do necessário, por cautela).
+14. **Candidatos com stop por nível (`stop_price`) precisam de guarda de validade** (o motor recusa `ExitSpec` inválida com `ValueError`, como projetado): os testes de vazamento expuseram a falta dessa guarda no OR30 (corrigido; trades do EXP-0013 idênticos).
+15. **Placebo de 10 sorteios é grosseiro** (um sorteio superou o EXP-0011): usar ≥ 20 quando o custo for ≲ 20 s. Além disso, regras escolhidas após decomposição (como o filtro de volatilidade do EXP-0012) exigem um **placebo de seleção**: distribuição do resultado de subconjuntos aleatórios do mesmo tamanho da arquitetura sem o filtro.
+16. **A restrição real é a amostra, não o tempo**: 16 tentativas acumuladas em ≤ 100 trades por experimento; mais experimentos não são mais evidência, e o snooping cresce com cada leitura da mesma partição.
+17. **Direção "inversa" não se adota depois de perder** (gap-and-go pior que o acaso): só como hipótese nova com mecanismo próprio.
+18. **O EXP-0012 precisa do placebo de seleção antes de qualquer checkpoint de validação**; hipóteses independentes da nossa amostra (literatura/mecanismo) têm prioridade na Run 3 (ex.: volume relativo da 1ª barra, "stocks in play"; dado de volume já existe em `data/raw`).
+19. **(revisa o 13) Diretriz do usuário, 2026-09-19:** os X minutos valem **só para a experimentação**; setup, testes de vazamento, pytest completo, relatório, `knowledge.md` e commit ficam **fora do relógio**; o limite é **brando** (um experimento em andamento pode terminar) e não se reserva tempo de fechamento dentro dos X minutos. Teto de 25 experimentos por run mantido.
+20. **Mitigação do risco de vazamento no fim:** `tests/test_candidates_auto_leakage.py` descobre automaticamente os candidatos e aplica a bateria; checagem de um candidato em segundos com `-k <Classe>`; o resultado só é aceito depois dela.
+21. **Correção de registro (RUN-0001/EXP-0007):** a `decision.md` do EXP-0007 dizia "Leakage tests executed: YES", mas `OutsideRangeFade` (e `LateDayMomentum`, EXP-0008) não estavam nos testes explícitos. A descoberta automática os cobriu em 2026-09-19 e **ambos passaram** (sem vazamento). O registro original permanece (imutável); esta nota o corrige.
+
+---
+
+## RUN-0003 (2026-09-19) — novas linhas
+
+Condições: motor 1.1.0; partição de pesquisa (**21 tentativas cumulativas**); custos provisórios; placebo de 20 sorteios (200 na Análise B); arquitetura-base = ORB de 5 min com stop estrutural, sem trailing, saída 17:55 (RUN-0002/EXP-0011). Nenhum experimento passou nos portões D3.
+
+| Ref | Hipótese / família | Origem | Veredito | Evidência (Research) | Condições | Reabrir se |
+|---|---|---|---|---|---|---|
+| RUN-0003/EXP-0017 | EXP-0011 + volume relativo da 1ª barra > mediana de 20 ("in play") | literatura + mecanismo | **NÃO SUSTENTADO** | PF 0,86; DD 21,4%; 43 trades; exp. −R$ 12,7; seleção: P(acaso ≥ cand.) = 66% | volume real (`VOL`); série ajustada | outro proxy de participação com mecanismo distinto |
+| RUN-0003/EXP-0018 | EXP-0011 só a favor da tendência D1 | mecanismo | **NÃO SUSTENTADO** (piorou) | PF 0,61; DD 23,0%; 51 trades; exp. −R$ 36,6; seleção: 93% | EMAs D1 fechadas | — (EXP-0004 e este convergem: tendência D1 não é filtro útil aqui) |
+| RUN-0003/EXP-0019 | EXP-0011 + UMA re-entrada após stop | mecanismo | **NÃO SUSTENTADO** (piora DD 34,9%) | PF 0,91; 121 trades; exp. −R$ 8,2; re-entradas −R$ 1.027 (WR 14%) | `max_trades_per_day = 2` | — |
+| RUN-0003/EXP-0020 | ORB de 5 min na abertura de NY (09:30 ET) | literatura + mecanismo | **NÃO SUSTENTADO** (= acaso) | PF 0,72; DD 20,8%; 92 trades; exp. −R$ 14,8; excesso −0,18 | DST tratado por tz_convert; janela 09:00–12:00 | custos muito menores ou nova amostra |
+| RUN-0003/EXP-0021 | EXP-0011 + alvo estrutural PDH/PDL | mecanismo | **NÃO SUSTENTADO** (destrói o pai) | PF 0,59; DD 31,7%; exp. −R$ 30,3; excesso +0,37 | alvo por nível se ≥ 2 pts | — (não capar os vencedores) |
+| RUN-0003/EXP-0022 | Breakeven / trailing com ativação condicional após +1R | mecanismo | **BLOCKED** (motor 1.1.0) | não rodado; não conta como tentativa | falta ativação condicional (D11) | capacidade no motor (D11) |
+
+### Aprendizados adicionais (valem até serem superados)
+22. **Filtros que escolhem ~45 dos 100 trades têm pouco poder** (subconjuntos aleatórios: média ~0 ± R$ 48): mais filtros na mesma arquitetura são mineração de ruído. Os filtros de volume e de tendência escolheram trades **piores que o típico**.
+23. **O portão D3 "top-5 ≤ 40% do lucro bruto" é estruturalmente inatingível para win rate baixo/payoff alto** (top-5 típico de subconjuntos aleatórios: 0,84; p5 = 0,70): usar o placebo de seleção como leitura complementar; revisão é decisão do usuário (D10).
+24. **A direção da 1ª barra da B3 supera o acaso** (200 sorteios: P = 3,5%, z = 1,66), **mas** a expectância líquida é ≈ 0 e depende de slippage: bruto +R$ 12,4/trade; cada 0,5 pt/lado custa ~R$ 10/trade; equilíbrio ≈ 0,55 pt/lado. Custos reais (D6) são decisivos.
+25. **Não capar nem alavancar a arquitetura**: alvo fixo, alvo estrutural e re-entrada pioram; ela depende de poucos vencedores grandes.
+26. **A deriva intradiária da amostra é nula** (t = −0,65): a assimetria long/short do EXP-0011 fica sem explicação (ruído).
+27. **Tooling:** o placebo deve converter `target_price` em distância (falha na 1ª tentativa do EXP-0021, sem efeito no resultado do candidato); a checagem automática de vazamento funcionou como mitigação (candidatos passaram em segundos).
+

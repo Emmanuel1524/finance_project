@@ -1,0 +1,109 @@
+{
+ "engine_version": "1.1.0",
+ "strategy": "exp0018_orb_structural_trend_aligned",
+ "trade_count": 51,
+ "net_pnl": -1867.0,
+ "gross_profit": 2946.0,
+ "gross_loss": 4813.0,
+ "profit_factor": 0.612,
+ "win_rate": 13.73,
+ "avg_win": 420.86,
+ "avg_loss": -109.39,
+ "payoff": 3.847,
+ "expectancy": -36.61,
+ "avg_duration_min": 158.4,
+ "max_consec_wins": 1,
+ "max_consec_losses": 13,
+ "max_drawdown_brl": -2302.24,
+ "max_drawdown_pct": 23.02,
+ "max_days_underwater": 101,
+ "monthly_pnl": {
+  "2026-02": -1366.0,
+  "2026-03": -550.0,
+  "2026-04": -87.0,
+  "2026-05": -79.0,
+  "2026-06": 215.0
+ },
+ "months_positive": "1/5",
+ "max_month_share": null,
+ "rolling20_min": -1366.0,
+ "rolling20_pos_frac": 0.233,
+ "top5_trades_share": 0.857,
+ "top5_days_share": 0.857,
+ "worst_trade": -267.0,
+ "worst_5_sum": -1125.0,
+ "by_side": {
+  "LONG": {
+   "n": 21,
+   "pnl": -227.0
+  },
+  "SHORT": {
+   "n": 30,
+   "pnl": -1640.0
+  }
+ },
+ "by_entry": {
+  "ORB_STRUCT": {
+   "n": 51,
+   "pnl": -1867.0,
+   "wr": 13.7
+  }
+ },
+ "entry_bar_exits": 4,
+ "regime_vol_high_next": {
+  "vol_alta": {
+   "n": 23,
+   "pnl": -756.0,
+   "status": "ok"
+  },
+  "vol_baixa": {
+   "n": 28,
+   "pnl": -1111.0,
+   "status": "ok"
+  }
+ },
+ "regime_up_next": {
+  "alta_5d": {
+   "n": 23,
+   "pnl": -1756.0,
+   "status": "ok"
+  },
+  "baixa_5d": {
+   "n": 28,
+   "pnl": -111.0,
+   "status": "ok"
+  }
+ },
+ "gates": {
+  "min_trades": true,
+  "max_drawdown": false,
+  "top5_trades": false,
+  "month_concentration": false,
+  "expectancy_positive": false
+ },
+ "gates_pass": false,
+ "placebo": {
+  "draws": 20,
+  "mean_expectancy": -41.38,
+  "p95_expectancy": -9.45,
+  "max_expectancy": -6.41,
+  "mean_wr": 13.3,
+  "mean_trades": 51.0
+ },
+ "placebo_excess_expectancy": 4.77,
+ "placebo_runtime_s": 9.3,
+ "selection_placebo": {
+  "n": 51,
+  "draws": 20000,
+  "cand_mean": -36.61,
+  "cand_pf": 0.612,
+  "p_mean": 0.928,
+  "p_pf": 0.904,
+  "random_mean_p5_p50_p95": [
+   -41.0,
+   0.5,
+   41.9
+  ]
+ },
+ "degrees_of_freedom": 0
+}

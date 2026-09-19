@@ -1,0 +1,120 @@
+{
+ "engine_version": "1.1.0",
+ "strategy": "baseline_v0",
+ "trade_count": 96,
+ "net_pnl": -1097.0,
+ "gross_profit": 3290.0,
+ "gross_loss": 4387.0,
+ "profit_factor": 0.75,
+ "win_rate": 57.29,
+ "avg_win": 59.82,
+ "avg_loss": -107.0,
+ "payoff": 0.559,
+ "expectancy": -11.43,
+ "avg_duration_min": 12.0,
+ "max_consec_wins": 12,
+ "max_consec_losses": 5,
+ "max_drawdown_brl": -1697.84,
+ "max_drawdown_pct": 16.98,
+ "max_days_underwater": 96,
+ "monthly_pnl": {
+  "2026-02": -169.0,
+  "2026-03": -245.0,
+  "2026-04": -220.0,
+  "2026-05": -433.0,
+  "2026-06": -30.0
+ },
+ "months_positive": "0/5",
+ "max_month_share": null,
+ "rolling20_min": -931.0,
+ "rolling20_pos_frac": 0.252,
+ "top5_trades_share": 0.176,
+ "top5_days_share": 0.176,
+ "worst_trade": -107.0,
+ "worst_5_sum": -535.0,
+ "by_side": {
+  "LONG": {
+   "n": 48,
+   "pnl": -1011.0
+  },
+  "SHORT": {
+   "n": 48,
+   "pnl": -86.0
+  }
+ },
+ "by_entry": {
+  "P1_EMA": {
+   "n": 32,
+   "pnl": -14.0,
+   "wr": 62.5
+  },
+  "P1_EMA_DOUBLE": {
+   "n": 4,
+   "pnl": -3.0,
+   "wr": 50.0
+  },
+  "P2_AMBIGUOUS_LOW_FIRST": {
+   "n": 1,
+   "pnl": 53.0,
+   "wr": 100.0
+  },
+  "P2_HIGH": {
+   "n": 13,
+   "pnl": -111.0,
+   "wr": 61.5
+  },
+  "P2_LOW": {
+   "n": 8,
+   "pnl": -211.0,
+   "wr": 50.0
+  },
+  "P3_LIMIT": {
+   "n": 9,
+   "pnl": -483.0,
+   "wr": 33.3
+  },
+  "P3_STOP": {
+   "n": 16,
+   "pnl": -432.0,
+   "wr": 50.0
+  },
+  "P4_RSI": {
+   "n": 13,
+   "pnl": 104.0,
+   "wr": 69.2
+  }
+ },
+ "entry_bar_exits": 14,
+ "regime_vol_high_next": {
+  "vol_alta": {
+   "n": 46,
+   "pnl": 28.0,
+   "status": "ok"
+  },
+  "vol_baixa": {
+   "n": 50,
+   "pnl": -1125.0,
+   "status": "ok"
+  }
+ },
+ "regime_up_next": {
+  "alta_5d": {
+   "n": 40,
+   "pnl": -245.0,
+   "status": "ok"
+  },
+  "baixa_5d": {
+   "n": 56,
+   "pnl": -852.0,
+   "status": "ok"
+  }
+ },
+ "gates": {
+  "min_trades": true,
+  "max_drawdown": false,
+  "top5_trades": true,
+  "month_concentration": false,
+  "expectancy_positive": false
+ },
+ "gates_pass": false
+}

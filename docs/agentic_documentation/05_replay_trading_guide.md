@@ -160,3 +160,5 @@ Objetivo: provar que decisões passadas **não dependem de dados futuros**. Impl
 **Se um teste falhar:** investigar o vazamento **antes de continuar**. Em experimento, isso é `Look-ahead review: FAIL` e o resultado **não é aceito** ([07 §5](07_agent_protocol.md)); se a causa estiver no motor, aplicar o procedimento da §10.
 
 **Implementação:** `tests/test_leakage.py` (mutação do futuro, histórico truncado, reprodutibilidade do sinal e mutação da mesma barra, cada um com **controle negativo** que prova que o teste detecta um indicador com vazamento) e `tests/test_indicators.py` (EMA de candle fechado × EMA manual, IFR defasado, mutação e truncamento no nível dos indicadores).
+
+**Cobertura automática:** `tests/test_candidates_auto_leakage.py` descobre toda classe de estratégia em `wdo/strategies/candidates*.py` que não tenha teste explícito e aplica a bateria acima (cenário curto 09:00–12:55 por padrão; `leakage_scenario = "long"` e `leakage_config` na classe para candidatos de dia inteiro ou com `Config` próprio). Checagem de um candidato: `pytest tests/test_candidates_auto_leakage.py -k <Classe>`.

@@ -1,0 +1,109 @@
+{
+ "engine_version": "1.1.0",
+ "strategy": "exp0017_orb_structural_relvolume",
+ "trade_count": 43,
+ "net_pnl": -546.0,
+ "gross_profit": 3255.0,
+ "gross_loss": 3801.0,
+ "profit_factor": 0.856,
+ "win_rate": 23.26,
+ "avg_win": 325.5,
+ "avg_loss": -115.18,
+ "payoff": 2.826,
+ "expectancy": -12.7,
+ "avg_duration_min": 182.2,
+ "max_consec_wins": 3,
+ "max_consec_losses": 14,
+ "max_drawdown_brl": -2139.57,
+ "max_drawdown_pct": 21.4,
+ "max_days_underwater": 70,
+ "monthly_pnl": {
+  "2026-02": -346.0,
+  "2026-03": 1083.0,
+  "2026-04": -725.0,
+  "2026-05": 529.0,
+  "2026-06": -1087.0
+ },
+ "months_positive": "2/5",
+ "max_month_share": null,
+ "rolling20_min": -1173.0,
+ "rolling20_pos_frac": 0.388,
+ "top5_trades_share": 0.79,
+ "top5_days_share": 0.79,
+ "worst_trade": -267.0,
+ "worst_5_sum": -1040.0,
+ "by_side": {
+  "LONG": {
+   "n": 21,
+   "pnl": -1272.0
+  },
+  "SHORT": {
+   "n": 22,
+   "pnl": 726.0
+  }
+ },
+ "by_entry": {
+  "ORB_STRUCT": {
+   "n": 43,
+   "pnl": -546.0,
+   "wr": 23.3
+  }
+ },
+ "entry_bar_exits": 5,
+ "regime_vol_high_next": {
+  "vol_alta": {
+   "n": 26,
+   "pnl": 743.0,
+   "status": "ok"
+  },
+  "vol_baixa": {
+   "n": 17,
+   "pnl": -1289.0,
+   "status": "ok"
+  }
+ },
+ "regime_up_next": {
+  "alta_5d": {
+   "n": 22,
+   "pnl": 611.0,
+   "status": "ok"
+  },
+  "baixa_5d": {
+   "n": 21,
+   "pnl": -1157.0,
+   "status": "ok"
+  }
+ },
+ "gates": {
+  "min_trades": true,
+  "max_drawdown": false,
+  "top5_trades": false,
+  "month_concentration": false,
+  "expectancy_positive": false
+ },
+ "gates_pass": false,
+ "placebo": {
+  "draws": 20,
+  "mean_expectancy": -34.21,
+  "p95_expectancy": 8.35,
+  "max_expectancy": 11.6,
+  "mean_wr": 19.4,
+  "mean_trades": 43.0
+ },
+ "placebo_excess_expectancy": 21.51,
+ "placebo_runtime_s": 9.2,
+ "selection_placebo": {
+  "n": 43,
+  "draws": 20000,
+  "cand_mean": -12.7,
+  "cand_pf": 0.856,
+  "p_mean": 0.664,
+  "p_pf": 0.65,
+  "random_mean_p5_p50_p95": [
+   -47.7,
+   -0.1,
+   49.4
+  ]
+ },
+ "degrees_of_freedom": 0
+}

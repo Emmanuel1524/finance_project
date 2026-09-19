@@ -180,6 +180,7 @@ Tratar como **frágil** a estratégia cuja rentabilidade se concentra em um per�
 
 ## 12. Estatística para amostras pequenas
 
+- **Placebo de seleção** (obrigatório para filtros/regimes escolhidos após decomposição, ex.: o filtro de volatilidade do EXP-0012): comparar o resultado com a distribuição de subconjuntos aleatórios, do mesmo tamanho, dos trades/dias da arquitetura **sem** o filtro (sementes fixas, ≥ 1.000 reamostragens; é barato, não exige novo replay). O filtro só conta se superar essa distribuição com folga; reportar a probabilidade de a seleção ao acaso igualar o resultado.
 - **Limite de resolução:** o erro-padrão do win rate é `sqrt(p(1−p)/n)`: com ≤ ~100 trades é ~5 p.p. Diferenças menores que ~2 erros-padrão (win rate, expectância, comparação com o placebo) **não são evidência**; declarar isso na avaliação.
 - Poucos trades → **IC largos**: bootstrap por bloco (preserva autocorrelação), testes não paramétricos.
 - **Múltiplos testes:** cada variante consome graus de liberdade; corrigir (Bonferroni/Holm, DSR, Reality Check/SPA) usando a contagem de trials registrada.

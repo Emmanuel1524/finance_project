@@ -1,0 +1,96 @@
+{
+ "engine_version": "1.1.0",
+ "strategy": "exp0020_orb_ny_open",
+ "trade_count": 92,
+ "net_pnl": -1359.0,
+ "gross_profit": 3567.0,
+ "gross_loss": 4926.0,
+ "profit_factor": 0.724,
+ "win_rate": 15.22,
+ "avg_win": 254.79,
+ "avg_loss": -63.15,
+ "payoff": 4.034,
+ "expectancy": -14.77,
+ "avg_duration_min": 90.9,
+ "max_consec_wins": 2,
+ "max_consec_losses": 18,
+ "max_drawdown_brl": -2081.4,
+ "max_drawdown_pct": 20.81,
+ "max_days_underwater": 74,
+ "monthly_pnl": {
+  "2026-02": -309.0,
+  "2026-03": 737.0,
+  "2026-04": -426.0,
+  "2026-05": -471.0,
+  "2026-06": -890.0
+ },
+ "months_positive": "1/5",
+ "max_month_share": null,
+ "rolling20_min": -918.0,
+ "rolling20_pos_frac": 0.34,
+ "top5_trades_share": 0.683,
+ "top5_days_share": 0.683,
+ "worst_trade": -167.0,
+ "worst_5_sum": -725.0,
+ "by_side": {
+  "LONG": {
+   "n": 45,
+   "pnl": -1090.0
+  },
+  "SHORT": {
+   "n": 47,
+   "pnl": -269.0
+  }
+ },
+ "by_entry": {
+  "ORB_NY": {
+   "n": 92,
+   "pnl": -1359.0,
+   "wr": 15.2
+  }
+ },
+ "entry_bar_exits": 23,
+ "regime_vol_high_next": {
+  "vol_alta": {
+   "n": 44,
+   "pnl": -1298.0,
+   "status": "ok"
+  },
+  "vol_baixa": {
+   "n": 48,
+   "pnl": -61.0,
+   "status": "ok"
+  }
+ },
+ "regime_up_next": {
+  "alta_5d": {
+   "n": 38,
+   "pnl": -146.0,
+   "status": "ok"
+  },
+  "baixa_5d": {
+   "n": 54,
+   "pnl": -1213.0,
+   "status": "ok"
+  }
+ },
+ "gates": {
+  "min_trades": true,
+  "max_drawdown": false,
+  "top5_trades": false,
+  "month_concentration": false,
+  "expectancy_positive": false
+ },
+ "gates_pass": false,
+ "placebo": {
+  "draws": 20,
+  "mean_expectancy": -14.59,
+  "p95_expectancy": 1.59,
+  "max_expectancy": 7.78,
+  "mean_wr": 14.6,
+  "mean_trades": 92.0
+ },
+ "placebo_excess_expectancy": -0.18,
+ "placebo_runtime_s": 8.3,
+ "degrees_of_freedom": 0
+}
