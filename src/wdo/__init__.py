@@ -8,13 +8,13 @@ from .indicators import add_point_in_time_indicators, closed_candle_ema, rsi_wil
 from .metrics import metrics
 from .partitions import Partitions, load_partition_bars, run_partition_backtest, select
 from .reporting import plot_results, print_backtest_report
-from .strategies import BarOpen, BaselineV0, OrderIntent, SessionDecision, SessionOpen, Strategy
+from .strategies import BarOpen, BaselineV0, ExitSpec, OrderIntent, SessionDecision, SessionOpen, Strategy
 
 __all__ = [
     "Config", "round_tick", "REQUIRED_COLUMNS", "validate_bars", "load_csv_or_parquet", "load_mt5_export",
     "load_http_ohlcv", "build_continuous_contract", "rsi_wilder", "closed_candle_ema",
     "add_point_in_time_indicators", "ENGINE_VERSION", "Position", "BacktestResults", "WDOReplayEngine",
     "run_backtest", "metrics", "print_backtest_report", "plot_results", "Partitions", "load_partition_bars",
-    "run_partition_backtest", "select", "BarOpen", "BaselineV0", "OrderIntent", "SessionDecision",
+    "run_partition_backtest", "select", "BarOpen", "BaselineV0", "ExitSpec", "OrderIntent", "SessionDecision",
     "SessionOpen", "Strategy",
 ]

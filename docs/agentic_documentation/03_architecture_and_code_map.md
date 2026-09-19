@@ -38,9 +38,10 @@ Módulos: `config.py` (Config, round_tick), `data.py` (loaders/validação/rollo
 | `rsi_wilder` | RSI com EWM `alpha=1/period`. |
 | `closed_candle_ema`, `add_point_in_time_indicators` | EMA H1/D1 do **último candle fechado** (sobre candles existentes) e RSI até a barra anterior. Verificados por testes de mutação/truncamento. |
 | `Strategy`, `OrderIntent`, `SessionOpen`, `SessionDecision`, `BarOpen` | Contrato estratégia ↔ simulador: a estratégia vê só a abertura da barra e barras fechadas e devolve ordens (`market`/`stop`/`limit`). |
+| `ExitSpec` | Instrução de saída por trade anexada a uma `OrderIntent` (motor 1.1.0): stop por pontos ou nível (obrigatório), alvo opcional, trailing, saída por horário. Sem ela vale o `Config` (V0). |
 | `BaselineV0` | Regras do EA v1.35 (Padrões 1–4). |
 | `Position`, `BacktestResults` | Estruturas de estado/saída (`BacktestResults` inclui `engine_version` e `strategy_name`). |
-| `WDOReplayEngine` | Simulador. Métodos: `level_fill`, `select_entry`, `open_position`, `manage_entry_bar`, `process_position`, `exit`, `process_session_bar`, `run`. `ENGINE_VERSION = 1.0.0`. |
+| `WDOReplayEngine` | Simulador. Métodos: `level_fill`, `select_entry`, `open_position`, `manage_entry_bar`, `process_position`, `update_trailing`, `resolve_exit`, `exit`, `process_session_bar`, `run`. `ENGINE_VERSION = 1.1.0`. |
 | `run_backtest` | Fachada: aquece indicadores com histórico anterior, descarta barras após o fim da janela e roda o motor. |
 | `Partitions`, `select`, `load_partition_bars`, `run_partition_backtest` | Partições de dados (D1) e guarda: validação/holdout só com `authorized=True`. |
 | `metrics` | Dicionário de métricas (estilo relatório MT5). |
@@ -64,9 +65,9 @@ Módulos: `config.py` (Config, round_tick), `data.py` (loaders/validação/rollo
 - Slippage é aplicado simetricamente em entrada e saída via `fill`, inclusive em saídas de alvo/stop (para alvo limit, modelar slippage zero é mais fiel; decisão a documentar).
 - Sem logging; sem tipagem estrita; sem cobertura de teste para P1 `EMA_DOUBLE`, P3 ambos os modos completos com slippage, posição herdada, e `end of data`.
 
-## Testes existentes (45; `pytest -q`)
+## Testes existentes (77; `pytest -q`)
 
-`test_wdo_backtest.py` (6 originais, adaptados), `test_execution.py` (nível, gap, barra de entrada, custos), `test_indicators.py`, `test_leakage.py` (com controles negativos), `test_partitions.py` e `test_engine_frozen.py` (regressão do motor 1.0.0). Os 6 testes originais:
+`test_wdo_backtest.py` (6 originais, adaptados), `test_execution.py` (nível, gap, barra de entrada, custos), `test_indicators.py`, `test_leakage.py` (com controles negativos), `test_partitions.py`, `test_exit_capability.py` (ExitSpec: validação, alvo opcional, horário, trailing, gaps, barra de entrada e vazamento) e `test_engine_frozen.py` (regressão do motor; idêntica na 1.0.0 e na 1.1.0). Os 6 testes originais:
 
 1. `test_round_tick`
 2. `test_reject_duplicate_and_bad_ohlc`

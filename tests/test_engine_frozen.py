@@ -2,7 +2,7 @@
 
 Este teste é a trava de congelamento: qualquer mudança de comportamento do simulador ou do V0 quebra
 o resultado abaixo. Se a mudança for uma correção aprovada, o procedimento é: aprovar, subir
-`ENGINE_VERSION`, atualizar os valores de referência e reexecutar o V0 e os candidatos relevantes.
+`ENGINE_VERSION`, atualizar os valores de referência (a 1.1.0 manteve todos os valores: só a versão mudou) e reexecutar o V0 e os candidatos relevantes.
 """
 import hashlib
 
@@ -10,7 +10,7 @@ from helpers import make_bars
 from wdo import ENGINE_VERSION, Config, WDOReplayEngine, validate_bars
 
 REFERENCE = {
-    "engine_version": "1.0.0",
+    "engine_version": "1.1.0",
     "n_trades": 21,
     "entry_reasons": {"P2_HIGH": 1, "P2_LOW": 1, "P3_LIMIT": 10, "P3_STOP": 7, "P4_RSI": 2},
     "exit_reasons": {"END_OF_DATA": 1, "STOP_LOSS": 9, "TAKE_PROFIT": 11},

@@ -6,9 +6,9 @@ Projeto quant em Python: backtest/replay de um EA MQL5 de abertura do WDO (B3). 
 
 ## Regras essenciais
 
-1. Fonte da verdade das regras da estratégia: `reference/mt5/Robo_Abertura_WDO_Genial_v1.35.mq5` (MQL5). O Python (`src/wdo/`) deve espelhá-lo.
+1. Fonte da verdade das regras do **Baseline V0**: `reference/mt5/Robo_Abertura_WDO_Genial_v1.35.mq5` (MQL5); a implementação do V0 (`strategies/baseline_v0.py`) deve espelhá-lo. Candidatos não precisam: o V0 é referência, não restrição.
 2. Nunca introduzir look-ahead: em `t` só se usa informação disponível em ou antes de `t`; sinal calculado com o close da barra t só executa a partir de t+1; timing ambíguo ⇒ premissa conservadora. Todo indicador/feature novo: revisão point-in-time e testes de vazamento (`docs/agentic_documentation/05` §5 e §11).
-3. Manter `intrabar_policy="adverse"` como padrão. Nunca ajustar premissas para melhorar resultado.
+3. Manter `intrabar_policy="adverse"` como padrão. Nunca ajustar premissas de **simulação** (custos, slippage, execução, partições) para melhorar resultado. **Baseline V0 é referência, não restrição:** regras, TP/SL, indicadores e sessão do V0 podem ser desafiados com hipótese registrada antes (`docs/agentic_documentation/06` §1–§2; protegido: `05` §10); mudança estrutural de parâmetro é Fase 1, hill-climbing é Fase 2.
 4. Custos, slippage e valor do ponto sempre explícitos em qualquer resultado.
 5. Parâmetros só em `Config`. Dados brutos (`data/raw/wdo_data.csv`) são imutáveis.
 6. Rodar `pytest -q` e reportar o resultado **real**. Nunca inventar métricas; diferenciar "verificado" de "inferido".

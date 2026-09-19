@@ -10,7 +10,7 @@ Objetivo: dois ou mais agentes trabalharem no mesmo projeto **sem se contradizer
 
 1. Ler `README.md` desta pasta e [01](01_project_overview.md), [02](02_strategy_spec.md), [06](06_quant_finance_playbook.md), [08](08_roadmap_and_open_questions.md).
 2. Ler `../../CLAUDE.md` (ou `../../AGENTS.md`): regras de conduta.
-3. Abrir o trecho relevante de `reference/mt5/Robo_Abertura_WDO_Genial_v1.35.mq5` **antes** de tocar em qualquer regra.
+3. Abrir o trecho relevante de `reference/mt5/Robo_Abertura_WDO_Genial_v1.35.mq5` **antes** de tocar em qualquer regra **do V0**.
 4. Rodar `pytest -q` e registrar o resultado real (linha de base de código).
 5. Só então planejar a mudança.
 
@@ -21,9 +21,9 @@ Objetivo: dois ou mais agentes trabalharem no mesmo projeto **sem se contradizer
 - **Honestidade sobre execução:** distinguir "verificado rodando" de "inferido lendo". Nunca inventar métricas. Se um teste falhou, dizer.
 - **Sem surpresas:** não instalar dependências, não editar dados brutos, não commitar fora do autorizado (registro ao fim de cada run, §4), não mudar defaults conservadores, não apagar arquivos **sem pedir**.
 - **Mudanças pequenas e revisáveis.** Refatoração estrutural: propor plano primeiro.
-- **Fonte da verdade:** `reference/mt5/Robo_Abertura_WDO_Genial_v1.35.mq5` para regras do V0; `Config` para parâmetros; `tests/` para comportamento esperado.
+- **Fonte da verdade:** `reference/mt5/Robo_Abertura_WDO_Genial_v1.35.mq5` para regras do V0 (a fidelidade ao EA vale só para a implementação do V0, não para candidatos); `Config` para o cenário e a execução; cada candidato declara seus parâmetros de desenho em config própria, registrada no experimento; `tests/` para comportamento esperado.
 - **Toda mudança em regra ou motor** → teste novo/atualizado + `pytest -q` + comparação antes/depois. Mudança de **motor** só como correção de simulação ([05 §10](05_replay_trading_guide.md)).
-- **Nunca "melhorar" resultado** ajustando premissa (slippage, política intrabar, período, custos) nem modificando o motor. Isso é p-hacking.
+- **Nunca "melhorar" resultado** ajustando premissas de **simulação** (slippage, política intrabar, período, custos, regras de execução) nem modificando o motor. Isso é p-hacking. O **desenho da estratégia** (stops, alvos, indicadores, sessão, limite diário) não é premissa protegida: pode mudar com hipótese registrada antes de rodar ([06 §2](06_quant_finance_playbook.md)).
 
 ## 3. Divisão de trabalho sugerida
 
@@ -42,7 +42,7 @@ Objetivo: dois ou mais agentes trabalharem no mesmo projeto **sem se contradizer
 - **Baseline V0** = estratégia original. Permanece **intacta e reproduzível** em todo o projeto; pesquisa autônoma nunca a sobrescreve.
 - Candidatos: `Candidate 001, 002, …, N`. Cada um é rastreável a: **hipótese**, **estratégia-pai** (V0 ou outro candidato), **implementação** (versão do código/`Config`) e **resultados**. A pesquisa preserva a proveniência.
 - **Registro de experimento (append-only)** — campos obrigatórios:
-  `ID do experimento` · `data/agente` · `hipótese` e `racional de mercado` (registrados **antes** de rodar) · `pai` · `mudança implementada` (o que e onde) · `versão do motor e do código` · `conjunto de dados usado (fronteiras, hash)` · `Config completa (custos, slippage, política intrabar)` · `métricas + diagnósticos + IC` · `comparação com o Baseline V0` · `revisão de integridade` e `revisão de overfitting` (blocos da §5) · `decisão: KEEP / REJECT / REFINE` · `lições aprendidas` · `consumo de orçamento`.
+  `ID do experimento` · `data/agente` · `hipótese`, `racional de mercado`, `origem da hipótese` (literatura / mecanismo / decomposição) e `premissa(s) do V0 desafiada(s)` (registrados **antes** de rodar) · `pai` · `mudança implementada` (o que e onde) · `versão do motor e do código` · `conjunto de dados usado (fronteiras, hash)` · `Config completa (custos, slippage, política intrabar)` · `métricas + diagnósticos + IC` · `excesso sobre o placebo` · `graus de liberdade` (parâmetros de desenho livres) · `comparação com o Baseline V0` · `revisão de integridade` e `revisão de overfitting` (blocos da §5) · `decisão: KEEP / REJECT / REFINE` · `lições aprendidas` · `consumo de orçamento`.
 - **Experimentos falhos são resultados válidos:** nunca apagar, sobrescrever nem omitir. Correções a um registro entram como nova entrada que referencia a anterior.
 - **Local:** `experiments/`, versionado no git (D4 decidida em 2026-09-19). **Cada prompt-task do usuário é uma run**: subdiretório `experiments/RUN-NNNN_<data>_<slug>/` com `run.md` (prompt, orçamento em minutos, início/fim, commit, versão do motor, hash e fronteiras dos dados) e uma pasta `EXP-NNNN_<slug>/` por experimento (`hypothesis.md`, `config.toml`, `metrics.json`, `decision.md`). O placar global está em `experiments/leaderboard.md`. Layout completo em `experiments/README.md`. Resultados gerados em `outputs/` **não** são o registro (é ignorado no git).
 - **Commits (autorizado em 2026-09-19):** o registro da run (`run.md`, os `EXP-*` e o `leaderboard.md`) é commitado **uma única vez, ao fim do prompt-task** — um commit por run, **nunca** um commit por experimento ou por passo. Qualquer outro commit (código, docs) só a pedido do usuário. A mensagem segue o padrão do projeto e inclui a atribuição do agente.
@@ -54,13 +54,14 @@ hipótese → implementação → teste → resultado → decisão (KEEP / REJEC
 ```
 **Nunca** o inverso (resultado → explicação inventada depois): uma explicação pós-resultado é hipótese nova e precisa de novo teste ([06 §7](06_quant_finance_playbook.md)).
 
-1. **Hipótese primeiro**, com racional de mercado (exemplos em [06 §10](06_quant_finance_playbook.md)), registrada **antes** de rodar. Sem hipótese, não há experimento. Nunca mudar a estratégia aleatoriamente para melhorar métricas históricas.
+1. **Hipótese primeiro**, com racional de mercado (exemplos em [06 §10](06_quant_finance_playbook.md)), origem rotulada e premissa do V0 desafiada, registrada **antes** de rodar. Sem hipótese, não há experimento. Nunca mudar a estratégia aleatoriamente para melhorar métricas históricas. Ao mudar um parâmetro existente, registrar os 4 pontos e cumprir a regra operacional de [06 §2](06_quant_finance_playbook.md) (uma alternativa a priori; sem vizinhos sem mecanismo novo).
+   - **Validade do desenho:** confirmar que a hipótese é expressável no motor congelado (ver capacidade de saída em [05 §10](05_replay_trading_guide.md)). Se não for, o experimento é **BLOCKED (capacidade do motor)**: registrar e **não** rodar um proxy distorcido (lição do EXP-0008).
 2. **Implementar** só a mudança estrutural necessária, sem tocar o motor de replay. **Revisão point-in-time obrigatória** para cada feature, indicador, filtro ou sinal novo:
    - responder por escrito: *"Este valor exato poderia ter sido conhecido neste exato timestamp em operação real?"*; resposta incerta ⇒ feature **insegura**, fora até verificação;
    - percorrer a tabela de vazamentos de [05 §5](05_replay_trading_guide.md);
    - rodar os testes de vazamento de [05 §11](05_replay_trading_guide.md) sobre a nova lógica quando tecnicamente praticável.
 3. **Rodar** no conjunto de pesquisa, com as mesmas premissas de execução de todos os candidatos.
-4. **Avaliar** as seis dimensões de [06 §3](06_quant_finance_playbook.md), os diagnósticos de [06 §4](06_quant_finance_playbook.md), robustez temporal e concentração de PnL ([06 §11](06_quant_finance_playbook.md)) e a ablação de complexidade ([06 §5](06_quant_finance_playbook.md)), sempre contra o V0. Sem score sintético nem pesos na Fase 1.
+4. **Avaliar** as seis dimensões de [06 §3](06_quant_finance_playbook.md), os diagnósticos de [06 §4](06_quant_finance_playbook.md), robustez temporal e concentração de PnL ([06 §11](06_quant_finance_playbook.md)) e a ablação de complexidade ([06 §5](06_quant_finance_playbook.md)), sempre contra o V0. Reportar o **excesso sobre o placebo de entrada aleatória** com a mesma saída e custos ([06 §8](06_quant_finance_playbook.md)), aplicar o limite de resolução estatística ([06 §12](06_quant_finance_playbook.md)) e, para candidatos adaptativos, comparar com a **contraparte fixa**. Sem score sintético nem pesos na Fase 1.
 5. **Relatório do experimento — blocos obrigatórios:**
 
 ```
@@ -73,14 +74,16 @@ Integrity checks:
 
 Overfitting review:
 - Clear structural hypothesis: YES / NO
-- Micro-parameter tuning performed: YES / NO
+- Micro-parameter tuning (local numerical search) performed: YES / NO
 - Added complexity justified: YES / NO
 - Temporal stability checked: YES / NO
 - PnL concentration acceptable: YES / NO
 - Validation data consulted unnecessarily: YES / NO
+- Baseline assumption challenged with a stated hypothesis (or N/A): YES / NO / N/A
+- Excess over random-entry placebo reported: YES / NO
 ```
    - **Integridade:** o resultado só pode ser aceito com `PASS, PASS, YES, NO` (e testes executados ou N/A justificado). **Qualquer falha ⇒ o resultado não é aceito**: registrar como inválido, corrigir a causa e refazer; se a causa estiver no motor, seguir [05 §10](05_replay_trading_guide.md).
-   - **Overfitting:** qualquer resposta desfavorável (sem hipótese estrutural, micro-ajuste feito, complexidade não justificada, estabilidade ou concentração não verificadas/inaceitáveis, validação consultada sem necessidade) ⇒ **REJECT ou, no máximo, REFINE cauteloso**; nunca KEEP até resolvido. **Métricas de destaque fortes não salvam um experimento cujo diagnóstico indica fragilidade.**
+   - **Overfitting:** qualquer resposta desfavorável (sem hipótese estrutural, micro-ajuste feito, complexidade não justificada, estabilidade ou concentração não verificadas/inaceitáveis, validação consultada sem necessidade, placebo não reportado) ⇒ **REJECT ou, no máximo, REFINE cauteloso**; nunca KEEP até resolvido. **Métricas de destaque fortes não salvam um experimento cujo diagnóstico indica fragilidade.**
 6. **Decidir e registrar:**
    - **KEEP:** hipótese sustentada; integridade e overfitting limpos; nenhuma dimensão degrada materialmente frente ao V0 sem justificativa; não é frágil ([06 §11](06_quant_finance_playbook.md)); a complexidade adicional merece seu lugar; amostra suficiente. Só candidatos KEEP são elegíveis a consulta à validação.
    - **REJECT:** hipótese falsificada, amostra insuficiente, risco de cauda/drawdown inaceitável, dependência de outliers, ou revisão de overfitting desfavorável.
@@ -126,7 +129,7 @@ Guardar em `docs/agentic_documentation/handoffs/AAAA-MM-DD_<agente>.md`.
 
 ## 9. Anti-padrões (não faça)
 
-- Ajustar parâmetros até o gráfico ficar bonito; busca de limiares na Fase 1.
+- Ajustar parâmetros até o gráfico ficar bonito; hill-climbing numérico na Fase 1 (mudanças **estruturais** de parâmetro com hipótese são permitidas).
 - Trocar `intrabar_policy` para `target_first` "para ver"; alterar custos/slippage por candidato.
 - Editar o motor para a estratégia render melhor.
 - Consultar ou "só dar uma olhada" na validação/holdout; resumir a série completa em notebooks de pesquisa.
@@ -138,7 +141,7 @@ Guardar em `docs/agentic_documentation/handoffs/AAAA-MM-DD_<agente>.md`.
 - Usar `shift(-n)`, janelas centradas, `bfill`, agregados do dia corrente ou escalonadores ajustados na série inteira (tabela de [05 §5](05_replay_trading_guide.md)).
 - Usar `fillna`/`dropna`/`ffill` sem contar quantas linhas afetou.
 - Reordenar/reamostrar dados sem preservar timezone.
-- Implementar regra "de memória" sem conferir o `.mq5`.
+- Implementar regra do V0 "de memória" sem conferir o `.mq5`.
 - Adicionar lógica de negócio apenas no notebook.
 - Declarar "pronto" sem ter rodado os testes.
 

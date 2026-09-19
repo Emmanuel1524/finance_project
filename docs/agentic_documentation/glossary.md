@@ -19,6 +19,11 @@
 | **Fase 1 / Fase 2** | Descoberta de arquitetura de estratégia / otimização de parâmetros (só depois) |
 | **Conjunto de pesquisa / validação / holdout** | Partição temporal dos dados; holdout invisível até autorização (06 §6) |
 | **Orçamento de pesquisa** | Nº máximo de experimentos significativos antes de parar (07 §6) |
+| **Placebo (entrada aleatória)** | Entradas de direção aleatória, nos mesmos instantes e com a mesma saída e custos do candidato; mede o "nível de zero edge" (06 §8) |
+| **Graus de liberdade** | Nº de parâmetros de desenho livres de um candidato; entra na contabilidade de complexidade (06 §5) |
+| **ExitSpec** | Instrução de saída por trade definida pela estratégia (stop por pontos/nível, alvo opcional, trailing, saída por horário); motor >= 1.1.0 (05 §10) |
+| **BLOCKED** | Hipótese não expressável no motor congelado; registrada e não executada com proxy distorcido (07 §5) |
+| **Origem da hipótese** | Rótulo: literatura, mecanismo de mercado ou decomposição (data-informed) (06 §10) |
 | **Padrão 1–4** | Regras de entrada do EA (ver 02) |
 | **Fade** | Operar contra o movimento (esperar reversão) |
 | **Stop order** | Ordem que dispara quando o preço atinge um nível (rompimento) |

@@ -28,3 +28,4 @@ experiments/
 - Sair do top 3 tira o experimento do **placar**, não do registro.
 - Baseline V0 e candidatos: cada `hypothesis.md` indica o **pai** (V0 ou outro candidato).
 - Nenhum dado bruto ou de mercado é copiado para cá (só métricas e configurações); dados ficam em `data/`.
+- Campos do registro (por experimento; `registry.csv`, `hypothesis.md`, `decision.md`), além dos já usados: `hypothesis_source` (literatura | mecanismo | decomposição), `assumptions_challenged` (premissas do V0 desafiadas), `degrees_of_freedom`, `placebo_excess` e o status **BLOCKED** para hipóteses não expressáveis no motor congelado (docs 07 §4–§5).

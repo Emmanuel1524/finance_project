@@ -8,7 +8,7 @@ Diretrizes para trabalhar neste repositório. O objetivo de longo prazo é uma *
 
 ## 1. Contexto do projeto
 
-- Backtest em Python de um EA de abertura do WDO (Mini Dólar, B3), replicando o EA MQL5 v1.35 (`reference/mt5/Robo_Abertura_WDO_Genial_v1.35.mq5`; é a **fonte da verdade** das regras).
+- Backtest em Python de um EA de abertura do WDO (Mini Dólar, B3), replicando o EA MQL5 v1.35 (`reference/mt5/Robo_Abertura_WDO_Genial_v1.35.mq5`; é a **fonte da verdade das regras do Baseline V0**, que é referência e não restrição para candidatos).
 - Layout (detalhe no `README.md`): código em `src/wdo/` (pacote `wdo`), testes em `tests/`, notebooks só de pesquisa/relatório em `notebooks/`, cenários em `configs/*.toml`, dado bruto em `data/raw/`, saídas geradas em `outputs/` (fora do git), docs em `docs/`.
 - Repositório git iniciado em 2026-09-19. O agente commita **apenas o registro de cada run, uma vez ao fim do prompt-task** (autorizado); qualquer outro commit só a pedido do usuário.
 - **Ambiente obrigatório: conda `wdo-backtest`** (Python 3.12; ver `environment.yml`). Kernel do notebook: "Python (wdo-backtest)". O `.venv` (Python 3.14) está obsoleto. Detalhes e comando headless em `docs/agentic_documentation/README.md`.
@@ -21,7 +21,7 @@ Diretrizes para trabalhar neste repositório. O objetivo de longo prazo é uma *
 2. **Zero survivorship / selection bias.** Não escolher período, parâmetros ou contratos olhando o resultado final.
 3. **Premissa conservadora por padrão.** Com OHLC não se sabe a ordem dos extremos: manter `intrabar_policy="adverse"` como padrão. Nunca trocar o padrão para melhorar o resultado.
 4. **Custos sempre explícitos.** Nenhum resultado financeiro é reportado sem custos, slippage e valor do ponto declarados. Resultado "sem custo" deve estar rotulado como tal.
-5. **Fidelidade ao EA.** Toda regra do motor Python deve ter correspondência rastreável no MQL5 (comentário com padrão/função de origem). Divergências são bugs ou decisões documentadas, nunca silenciosas.
+5. **Fidelidade ao EA (só para o Baseline V0).** A implementação do V0 deve ter correspondência rastreável no MQL5 (comentário com padrão/função de origem); divergências são bugs ou decisões documentadas. Candidatos **não** precisam espelhar o EA: **o V0 é referência, não restrição** (ver `docs/agentic_documentation/06` §1–§2).
 6. **Nunca inventar números.** Não reporte métricas que não foram executadas nesta sessão. Se testes falharam ou algo foi pulado, diga.
 7. **Overfitting é o inimigo.** Duas fases separadas: Fase 1 (descoberta de arquitetura, sem ajuste fino de limiares) e Fase 2 (otimização, só depois). Toda tentativa é contada para correção de múltiplos testes; holdout invisível na Fase 1. Ver seção 6 e `docs/agentic_documentation/06`.
 
@@ -38,7 +38,7 @@ Diretrizes para trabalhar neste repositório. O objetivo de longo prazo é uma *
 ## 4. Motor de backtest
 
 - Determinístico: mesma entrada + mesma `Config` = mesma saída, bit a bit. Sem `random` sem seed explícita.
-- `Config` (dataclass) é a **única** fonte de parâmetros. Sem números mágicos espalhados. Preferir `@dataclass(frozen=True)` e validação no `__post_init__` (tick_size > 0, horários coerentes, etc.).
+- `Config` (dataclass) é a fonte dos parâmetros do cenário e da execução; cada candidato declara seus parâmetros de desenho em config própria, registrada no experimento (proveniência e graus de liberdade). Sem números mágicos espalhados. Preferir `@dataclass(frozen=True)` e validação no `__post_init__` (tick_size > 0, horários coerentes, etc.).
 - Arredondar todo preço ao tick (`round_tick`, 0,5 pt no WDO) na entrada, saída, stop e alvo.
 - Ordem de eventos dentro da barra é regra explícita e testada: pendentes → gatilhos → stop/alvo, conforme `intrabar_policy`. Se stop e alvo cabem na mesma barra, `adverse` assume o stop.
 - 1 operação por dia é regra de estado (`day_state`), testada.
@@ -52,7 +52,7 @@ Diretrizes para trabalhar neste repositório. O objetivo de longo prazo é uma *
 - Cada regra da estratégia (Padrões 1–4, modos de canal 0/1/2, janela 09:00–10:30, cancelamento de pendentes) tem teste unitário com barras sintéticas e resultado esperado calculado à mão.
 - Testes obrigatórios para qualquer mudança no motor:
   - **Look-ahead:** resultado em t independe de dados após t.
-  - **Invariantes:** no máximo 1 posição, no máximo 1 trade/dia, stop/alvo no lado certo, PnL = (saída − entrada) × lado × qtd × valor_ponto − custos.
+  - **Invariantes:** no máximo 1 posição, no máximo `max_trades_per_day` trades/dia (Config; 1 no V0), stop/alvo no lado certo, PnL = (saída − entrada) × lado × qtd × valor_ponto − custos.
   - **Regressão:** conjunto de trades de referência (golden file) versionado; mudança de resultado exige justificativa.
   - **Paridade com o MT5:** comparar trades do Python com o Strategy Tester do MT5 (mesmos dados/período) e documentar diferenças esperadas (ticks, bid/ask, EMAs em formação).
 - Property-based testing (hypothesis) é bem-vindo para validação de dados e arredondamento.
@@ -61,6 +61,7 @@ Diretrizes para trabalhar neste repositório. O objetivo de longo prazo é uma *
 ## 6. Pesquisa e avaliação da estratégia
 
 - Amostra: **pesquisa / validação / holdout final** por tempo (nunca aleatório); fronteiras exigem aprovação (D1). O holdout é invisível na Fase 1 e só é aberto uma vez, com autorização.
+- **Baseline V0 é referência, não restrição:** regras, TP/SL, indicadores, limiares e sessão do V0 podem ser desafiados com hipótese; mudanças **estruturais** de parâmetro são Fase 1, hill-climbing numérico é Fase 2 (regra operacional em `docs/agentic_documentation/06` §2). Só a integridade da simulação é protegida (05 §10).
 - Otimização (walk-forward, mapas de estabilidade de parâmetros) pertence à **Fase 2**; na Fase 1, hipóteses estruturais com racional de mercado, orçamento finito de experimentos e registro imutável (inclusive dos rejeitados).
 - Múltiplos testes: registrar quantas configurações foram testadas; usar Deflated Sharpe Ratio / PBO ou ao menos Bonferroni/bootstrap antes de declarar edge.
 - Significância: com poucas operações (estratégia de 1 trade/dia ≈ até ~170 trades em 8 meses), reportar **intervalos de confiança** (bootstrap por trade e por bloco), não só médias.
@@ -90,7 +91,7 @@ finance_practice/
 ├── tests/
 ├── notebooks/                # pesquisa/validação/relatório, sem lógica de negócio
 ├── data/{raw,processed}/     # raw imutável; processed gerado
-├── reference/mt5/            # EA MQL5 (fonte da verdade)
+├── reference/mt5/            # EA MQL5 (fonte da verdade do Baseline V0)
 ├── experiments/              # registro versionado: RUN-NNNN por prompt-task, EXP-NNNN, leaderboard top 3
 ├── docs/agentic_documentation/
 └── outputs/                  # gerado (fora do git): notebooks executados, figuras, runs
@@ -146,7 +147,7 @@ Requisitos de produção:
 
 ## 12. Como o Claude deve trabalhar aqui
 
-- **Ler antes de editar**: consultar `reference/mt5/Robo_Abertura_WDO_Genial_v1.35.mq5` ao mexer em regras; confirmar o comportamento no EA, não presumir.
+- **Ler antes de editar**: consultar `reference/mt5/Robo_Abertura_WDO_Genial_v1.35.mq5` ao mexer em regras **do V0**; confirmar o comportamento no EA, não presumir.
 - Ao alterar regra de negócio: atualizar o teste correspondente, rodar `pytest -q`, e informar o resultado real.
 - Ao apresentar resultados de backtest: sempre incluir período, `Config`, custos/slippage, nº de trades e advertência de amostra pequena quando aplicável.
 - Mudanças que alteram resultados históricos (motor, dados, config padrão) exigem destaque explícito no resumo e comparação antes/depois.
@@ -176,7 +177,7 @@ jupyter notebook notebooks/01_wdo_opening_backtest.ipynb
 
 - [ ] `pytest -q` executado e resultado reportado
 - [ ] Sem look-ahead introduzido (teste incluído se houver feature nova)
-- [ ] Regra confere com `reference/mt5/Robo_Abertura_WDO_Genial_v1.35.mq5`
+- [ ] Regra do V0 confere com `reference/mt5/Robo_Abertura_WDO_Genial_v1.35.mq5` (candidatos: hipótese e premissa desafiada registradas)
 - [ ] Custos/slippage/valor do ponto explícitos nos resultados
 - [ ] Nenhum parâmetro mágico fora de `Config`
 - [ ] Mudança de resultado histórico destacada e justificada

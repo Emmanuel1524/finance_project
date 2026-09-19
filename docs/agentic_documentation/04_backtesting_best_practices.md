@@ -40,7 +40,7 @@ Princípio: **um backtest é uma hipótese sobre o passado, não uma prova sobre
 - **Sensibilidade paramétrica** (**somente Fase 2**, sobre uma arquitetura já escolhida): varrer `gain`, `loss`, `offset`, tolerância EMA, faixas RSI. Procure *platôs*, não picos. Na Fase 1 não se varrem limiares ([06 §2](06_quant_finance_playbook.md)).
 - **Sensibilidade de execução** (vale nas duas fases; é teste de robustez, não otimização; mesma grade para todos os candidatos): slippage 0 / 0,5 / 1 / 2 pts; `intrabar_policy` = `adverse` vs `target_first`; atraso de 1 barra na entrada.
 - **Perturbação de dados**: jitter nos preços dentro do tick, remoção aleatória de dias, troca de contrato.
-- **Placebo / controles**: mesma lógica com direção invertida, com datas embaralhadas, com sinais aleatórios de mesma frequência. Edge real não sobrevive ao placebo.
+- **Placebo / controles** (na Fase 1, o **placebo de entrada aleatória** — direção aleatória, mesmos instantes, mesma saída e custos, sementes fixas, vários sorteios — é obrigatório e seu excesso é reportado; ver [06 §8](06_quant_finance_playbook.md)): mesma lógica com direção invertida, com datas embaralhadas, com sinais aleatórios de mesma frequência. Edge real não sobrevive ao placebo.
 - **Subperíodos**: por mês, por trimestre, por dia da semana, por regime de volatilidade, dias de evento (Copom, payroll, FOMC).
 
 ## 5. Estatística mínima exigida
@@ -49,7 +49,7 @@ Princípio: **um backtest é uma hipótese sobre o passado, não uma prova sobre
 - **Deflated Sharpe Ratio** e/ou **Probability of Backtest Overfitting (PBO)** quando houver seleção de parâmetros.
 - **Bootstrap** (por trade e por bloco) para IC de PnL médio, win rate, profit factor.
 - **Teste de hipótese** do expected payoff > 0 com correção para múltiplos testes.
-- Reportar **expectativa em pontos e em R$**, e **breakeven win rate** (com alvo 6 / stop 10 e custo zero: `10/(6+10)` = 62,5%; **com custos, mais alto**).
+- Reportar **expectativa em pontos e em R$**, e **breakeven win rate** (V0: alvo 6 / stop 10 e custo zero: `10/(6+10)` = 62,5%; **com custos, mais alto**; em geral `p* = (L+c)/(G+L)`, que depende da estrutura de saída de cada candidato).
 
 ## 6. Métricas — definições que este projeto usa
 

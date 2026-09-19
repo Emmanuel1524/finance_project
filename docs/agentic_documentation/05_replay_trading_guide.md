@@ -10,11 +10,11 @@
 4. **Conservadorismo onde há incerteza:** com OHLC não se sabe se o high veio antes do low. Sempre resolver a ambiguidade contra a estratégia (`adverse`).
 5. **Auditabilidade:** cada decisão gera um evento com motivo.
 
-## 2. Ordem de processamento por barra (motor 1.0.0)
+## 2. Ordem de processamento por barra (motor 1.1.0)
 
 Para cada dia → para cada barra M5 `b`:
 
-1. `process_position(b)`: posição aberta em barra **anterior**. Atualiza MAE/MFE; stop/alvo com gap (stop no pior entre o stop e a abertura; alvo no melhor). Stop e alvo na mesma barra → política intrabar (padrão: **stop**).
+1. `process_position(b)`: posição aberta em barra **anterior**. Primeiro a **saída por horário** (`ExitSpec.exit_time`: a mercado na abertura da 1ª barra com horário >= o limite, antes de qualquer movimento). Depois MAE/MFE e stop/alvo com gap (stop, **inclusive trailing**, no pior entre o stop e a abertura; alvo, se existir, no melhor). Stop e alvo na mesma barra → política intrabar (padrão: **stop**). O trailing só é atualizado com `b` depois de processada (vale para a barra seguinte).
 2. Se `b` está na janela de operação: a estratégia recebe **só a abertura de `b`** e a barra anterior fechada (`on_bar_open`) e devolve ordens. O simulador decide a execução (`select_entry`): a mercado na abertura; ordens a nível tocadas no nível (ou na abertura, se houve gap além do nível); mesmo lado na mesma barra ⇒ **pior preço**; lados opostos ⇒ prioridade declarada pela estratégia.
 3. Se entrou: `manage_entry_bar(b)` — stop avaliado pela barra inteira (hipótese adversa), alvo só a partir da barra seguinte.
 4. `on_bar_close(b)` atualiza o estado da estratégia; equity marcada no `close`.
@@ -115,12 +115,15 @@ O mesmo núcleo de decisão deve ser reutilizável ao vivo:
 
 A pesquisa de estratégias ([06](06_quant_finance_playbook.md), [07](07_agent_protocol.md)) compara candidatos **sobre o mesmo simulador**. Por isso a simulação é um instrumento de medida que não pode ser ajustado para favorecer um candidato.
 
-**Invariantes que todo experimento preserva (candidato ou baseline):** processamento estritamente cronológico; sem look-ahead; indicadores point-in-time; interpretação conservadora do OHLC, sem premissa favorável quando a ordem intrabar é ambígua; regras de sessão vigentes; ciclo de vida de ordens; limite diário de trades; custos, comissão e slippage; tratamento de rollover; premissas de timezone. Premissas de execução são **idênticas para todos os candidatos**; sensibilidade a elas é aplicada a todos do mesmo modo.
+**Fronteira: o que é protegido × o que é desenho da estratégia.** O Baseline V0 é referência, não restrição ([06 §1](06_quant_finance_playbook.md)).
+
+- **Protegido (integridade da simulação; idêntico para todos os candidatos):** processamento estritamente cronológico; sem look-ahead; indicadores point-in-time; interpretação conservadora do OHLC (sem premissa favorável quando a ordem intrabar é ambígua); regras de execução do motor (níveis, gaps, barra de entrada, pior preço); custos, comissão e slippage; tratamento de rollover; timezone; partições de dados; versão do motor. Sensibilidade a esses pressupostos é aplicada a todos do mesmo modo.
+- **Livre (desenho da estratégia; pode ser desafiado com hipótese):** entradas, saídas, stop, alvo, relação risco/retorno, indicadores, limiares, filtros, regimes, **janela de sessão** (V0: 09:00–10:30), **limite diário de trades** (V0: 1) e a combinação de sinais. O motor apenas **aplica** o limite declarado pelo candidato, de forma consistente, e o registro o inclui. O tamanho da posição permanece em 1 contrato, salvo aprovação do usuário. (Regras de sessão e limite diário eram listadas antes como "invariantes"; são escolhas de desenho do V0.)
 
 **Congelamento do motor:**
 - O motor tem uma versão identificada; todo resultado registra a versão. **Nunca comparar resultados obtidos em versões diferentes do motor**: se o motor mudar, o Baseline V0 e os candidatos relevantes são reexecutados na nova versão.
 - Mudança de motor só é aceitável como **correção de erro de simulação** (ex.: R1–R5 em [08](08_roadmap_and_open_questions.md)), justificada por erro de modelagem e não por efeito no desempenho, com teste que reproduz o erro, aprovação do usuário e **nunca no mesmo experimento** que uma mudança de estratégia. O efeito no V0 é reportado como consequência, não como objetivo.
-- **Estado (2026-09-19):** as correções do G0 (R1, R4, R8, R9, R10; ver 08) foram feitas e o motor está na versão **`ENGINE_VERSION = 1.0.0`**, protegido por `tests/test_engine_frozen.py`. Mudar comportamento exige: aprovação do usuário, nova versão, atualizar a referência desse teste e reexecutar V0 e candidatos relevantes.
+- **Estado (2026-09-19):** as correções do G0 (R1, R4, R8, R9, R10; ver 08) foram feitas e o motor 1.0.0 foi congelado; em 2026-09-19 a capacidade de saída (D8) elevou a versão para **`ENGINE_VERSION = 1.1.0`** **sem alterar o comportamento sem `ExitSpec`**: o V0 é idêntico bit a bit (regressão em `tests/test_engine_frozen.py` e comparação 1.0.0 × 1.1.0 na partição de pesquisa: 96 trades, 292 eventos e 13.860 barras de equity iguais). O congelamento vale para a 1.1.0. Mudar comportamento exige: aprovação do usuário, nova versão, atualizar a referência desse teste e reexecutar V0 e candidatos relevantes.
 
 **Problema no motor descoberto durante a pesquisa (procedimento obrigatório):**
 1. **Parar** a pesquisa; não continuar comparando candidatos.
@@ -130,6 +133,16 @@ A pesquisa de estratégias ([06](06_quant_finance_playbook.md), [07](07_agent_pr
 5. A correção é uma **tarefa separada** de qualquer experimento de estratégia, com teste que reproduz o erro. Depois dela, V0 e candidatos relevantes são reexecutados na nova versão; resultados anteriores ficam marcados como **obsoletos** (nunca apagados).
 
 **Separação estratégia × simulação (feita em 2026-09-19):** o simulador (`engine.py`) executa qualquer `Strategy` (contrato em `strategies/base.py`); as regras do V0 vivem em `strategies/baseline_v0.py`. A estratégia só vê a abertura da barra corrente e barras já fechadas; gatilhos que dependem do range da barra chegam como ordens a nível (`stop`/`limit`), e o simulador decide se e a que preço executam. Candidatos são novos arquivos em `strategies/`; editar `engine.py` continua exigindo o procedimento acima.
+
+**Capacidade de saída (motor 1.1.0, D8):** a estratégia pode anexar uma `ExitSpec` a cada `OrderIntent`, com a **mesma semântica conservadora** do restante do motor:
+- **Stop obrigatório** (toda posição tem stop protetivo): por distância (`stop_points`, medida a partir do preço de entrada já com slippage) ou por nível absoluto (`stop_price`, ex.: estrutura de mercado). **Alvo opcional** (`target_points`/`target_price`; sem alvo, sem take profit).
+- **Trailing** (`trailing_points`): o stop acompanha o melhor preço **só com barras já fechadas** (a barra de entrada não conta, a barra corrente só vale para a seguinte); nunca afrouxa; gap fecha no pior entre o stop e a abertura.
+- **Saída por horário** (`exit_time`, no dia da entrada): a mercado na abertura da 1ª barra com horário >= o limite, com slippage; prevalece sobre stop/alvo dessa barra porque acontece na abertura.
+- Barra de entrada, gaps, política intrabar, custos e slippage: iguais aos do V0 (stop avaliado pela barra inteira; alvo e horário só a partir da barra seguinte).
+- **Validação que falha alto** (`ValueError`): sem stop, stop do lado errado, distâncias <= 0, alvo do lado errado, horário não posterior à entrada. A estratégia calcula distâncias e níveis **só com informação point-in-time** (cobertas pelos testes de vazamento).
+- Sem `ExitSpec`, vale o `Config` (V0) exatamente como antes.
+
+Continuam **BLOCKED** ([07 §5](07_agent_protocol.md)) hipóteses que exigem mais capacidade: saídas parciais, escalonamento de entrada, mais de uma posição simultânea, tamanho por trade.
 
 **Limitações do M5:** onde o OHLC M5 não reproduz o comportamento tick a tick do MT5 (toque intrabar de nível, EMAs em formação, bid/ask, fila, gaps de leilão), a limitação é **documentada** (§3–4 e R2–R5 em 08) e tratada com a premissa conservadora — nunca com uma premissa otimista que "aproxime" o EA e melhore o resultado.
 

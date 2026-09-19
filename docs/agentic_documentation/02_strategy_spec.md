@@ -1,5 +1,7 @@
 # 02 — Especificação da estratégia (EA v1.35) e mapeamento para o Python
 
+> Este documento descreve o **Baseline V0** (referência reproduzível). Nada aqui é restrição para candidatos: regras, parâmetros, stops/alvos, indicadores e sessão do V0 podem ser desafiados na Fase 1 com hipótese ([06 §1–§2](06_quant_finance_playbook.md)); só a integridade da simulação é protegida ([05 §10](05_replay_trading_guide.md)).
+
 Fonte: cabeçalho e `IniciarSessao()` de `reference/mt5/Robo_Abertura_WDO_Genial_v1.35.mq5`; implementação Python em `src/wdo/` (`WDOReplayEngine`). Se este documento e o `reference/mt5/Robo_Abertura_WDO_Genial_v1.35.mq5` divergirem, **o `reference/mt5/Robo_Abertura_WDO_Genial_v1.35.mq5` vence**; corrija este documento.
 
 ## Ideia central

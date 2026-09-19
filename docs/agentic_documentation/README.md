@@ -25,7 +25,7 @@ Data de referência do snapshot: 2026-09-18. Tudo aqui foi escrito **lendo o có
 - Novas dependências: adicionar em `environment.yml` (e em `pyproject.toml` se o pacote `wdo` depender delas) **com aprovação do usuário**.
 - Em ambiente já existente, `pip install -e .` (na raiz) registra o pacote `wdo`.
 
-Verificado em 2026-09-19 (motor 1.0.0): `pytest -q` → 45 passed; `notebooks/01_wdo_opening_backtest.ipynb` executa de ponta a ponta sem erros neste ambiente.
+Verificado em 2026-09-19 (motor 1.1.0): `pytest -q` → 77 passed; `notebooks/01_wdo_opening_backtest.ipynb` executa de ponta a ponta sem erros neste ambiente.
 
 ## Ordem de leitura
 
@@ -46,7 +46,7 @@ Regras curtas de conduta estão em `../../CLAUDE.md` e `../../AGENTS.md`.
 ## Se você só tem 2 minutos
 
 - O projeto **replica em Python um robô MQL5 (EA v1.35) de abertura do WDO** (mini dólar, B3) para backtestar sobre candles M5.
-- A **fonte da verdade das regras é o arquivo `reference/mt5/Robo_Abertura_WDO_Genial_v1.35.mq5`** (código MQL5). O Python (`src/wdo/`) deve espelhá-lo.
+- A **fonte da verdade das regras do Baseline V0 é o arquivo `reference/mt5/Robo_Abertura_WDO_Genial_v1.35.mq5`** (código MQL5); a implementação do V0 deve espelhá-lo. **O V0 é referência, não restrição**: candidatos podem redesenhar regras, TP/SL, indicadores e sessão com hipótese (06 §1–§2); só a integridade da simulação é protegida (05 §10).
 - Um backtest de diagnóstico do pipeline já rodou, mas seus números **não são referência de pesquisa** (ver 08). Antes de confiar em qualquer número: rode `pytest -q` e leia [08](08_roadmap_and_open_questions.md), que lista **divergências e riscos de look-ahead** já identificados.
 - **Pesquisa de estratégia (Fase 1) NÃO está autorizada** até o usuário aprovar a metodologia e as decisões D1–D7 (08). Metodologia: [06](06_quant_finance_playbook.md) (fases, qualidade, dados, salvaguardas), [07](07_agent_protocol.md) (ciclo, registro, orçamento), [05 §10](05_replay_trading_guide.md) (integridade e congelamento do motor).
 - Objetivo de longo prazo: estratégia **produtizável, sólida e escalável**. Rigor > velocidade.

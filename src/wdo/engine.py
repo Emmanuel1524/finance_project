@@ -11,7 +11,9 @@ adversa para a estratégia quando a sequência é desconhecida. Regras de execu�
   vale a prioridade declarada pela estratégia;
 - a barra de entrada também é processada: stop pela janela inteira (premissa adversa) e alvo só
   a partir da barra seguinte;
-- saídas com gap: stop executa no pior entre o stop e a abertura; alvo, no melhor.
+- saídas com gap: stop executa no pior entre o stop e a abertura; alvo, no melhor;
+- (1.1.0) a estratégia pode anexar uma `ExitSpec` a cada entrada (stop por pontos ou nível, alvo opcional,
+  trailing, saída por horário) com a MESMA semântica conservadora; sem `ExitSpec`, vale o `Config` (V0).
 
 `ENGINE_VERSION` identifica o simulador. Resultados só são comparáveis dentro da mesma versão;
 qualquer mudança de comportamento exige nova versão e aprovação (docs 05 §10).
@@ -25,9 +27,9 @@ import pandas as pd
 from .config import Config, round_tick
 from .data import validate_bars
 from .indicators import add_point_in_time_indicators
-from .strategies import BarOpen, BaselineV0, OrderIntent, SessionOpen, Strategy
+from .strategies import BarOpen, BaselineV0, ExitSpec, OrderIntent, SessionOpen, Strategy
 
-ENGINE_VERSION = "1.0.0"
+ENGINE_VERSION = "1.1.0"
 
 
 @dataclass
@@ -38,10 +40,20 @@ class Position:
     entry_price: float
     quantity: float
     stop_initial: float
-    target_initial: float
+    target_initial: float | None
     mae: float = 0.0
     mfe: float = 0.0
     entry_reason: str = ""
+    stop_current: float | None = None            # stop vigente (o trailing só o aperta)
+    trail_points: float | None = None
+    exit_deadline: pd.Timestamp | None = None
+    best_price: float | None = None              # melhor preço já visto em barras fechadas
+
+    def __post_init__(self):
+        if self.stop_current is None:
+            self.stop_current = self.stop_initial
+        if self.best_price is None:
+            self.best_price = self.entry_price
 
 
 @dataclass
@@ -112,16 +124,52 @@ class WDOReplayEngine:
         tag = intent.conflict_tag if len(touched) > 1 and intent.conflict_tag else intent.tag
         return intent, price, tag
 
-    def open_position(self, when, side: int, raw_price: float, reason: str) -> Position:
+    def resolve_exit(self, side: int, entry: float, when, spec: ExitSpec | None):
+        """(stop, alvo|None, trailing|None, horário-limite|None) de um trade. Sem `spec`: `Config` (V0).
+
+        `spec` inválida falha alto (ValueError): stop do lado errado, sem stop, distância <= 0, horário já passado.
+        """
+        tick = self.c.tick_size
+        if spec is None:
+            return (round_tick(entry - side * self.c.loss_points, tick),
+                    round_tick(entry + side * self.c.gain_points, tick), None, None)
+        if (spec.stop_points is None) == (spec.stop_price is None):
+            raise ValueError("ExitSpec exige exatamente um entre stop_points e stop_price (toda posição tem stop protetivo)")
+        if spec.stop_points is not None:
+            if spec.stop_points <= 0:
+                raise ValueError(f"stop_points deve ser > 0 (recebido {spec.stop_points})")
+            stop = round_tick(entry - side * spec.stop_points, tick)
+        else:
+            stop = round_tick(spec.stop_price, tick)
+        if (entry - stop) * side <= 0:
+            raise ValueError(f"stop {stop} não está do lado protetivo da entrada {entry} (lado {side})")
+        if spec.target_points is not None and spec.target_price is not None:
+            raise ValueError("ExitSpec aceita no máximo um entre target_points e target_price")
+        target = None
+        if spec.target_points is not None:
+            if spec.target_points <= 0:
+                raise ValueError(f"target_points deve ser > 0 (recebido {spec.target_points})")
+            target = round_tick(entry + side * spec.target_points, tick)
+        elif spec.target_price is not None:
+            target = round_tick(spec.target_price, tick)
+        if target is not None and (target - entry) * side <= 0:
+            raise ValueError(f"alvo {target} não está do lado favorável da entrada {entry} (lado {side})")
+        if spec.trailing_points is not None and spec.trailing_points <= 0:
+            raise ValueError(f"trailing_points deve ser > 0 (recebido {spec.trailing_points})")
+        deadline = None
+        if spec.exit_time is not None:
+            deadline = when.normalize() + pd.Timedelta(hours=spec.exit_time.hour, minutes=spec.exit_time.minute)
+            if deadline <= when:
+                raise ValueError(f"exit_time {spec.exit_time} não é posterior à entrada ({when})")
+        return stop, target, spec.trailing_points, deadline
+
+    def open_position(self, when, side: int, raw_price: float, reason: str, exit_spec: ExitSpec | None = None) -> Position:
         entry = self.fill(side, raw_price)
+        stop, target, trail, deadline = self.resolve_exit(side, entry, when, exit_spec)
         self.trade_id += 1
         self.trades_today += 1
-        self.position = Position(
-            self.trade_id, side, when, entry, self.c.quantity,
-            round_tick(entry - side * self.c.loss_points, self.c.tick_size),
-            round_tick(entry + side * self.c.gain_points, self.c.tick_size),
-            entry_reason=reason,
-        )
+        self.position = Position(self.trade_id, side, when, entry, self.c.quantity, stop, target,
+                                 entry_reason=reason, trail_points=trail, exit_deadline=deadline)
         self.resting.clear()
         self.event(when, "ENTRY", reason)
         return self.position
@@ -136,9 +184,9 @@ class WDOReplayEngine:
         adverse = (p.entry_price - bar.low) if p.side > 0 else (bar.high - p.entry_price)
         p.mae = max(p.mae, adverse, 0.0)
         p.mfe = max(p.mfe, (bar.close - p.entry_price) * p.side, 0.0)
-        hit_stop = bar.low <= p.stop_initial if p.side > 0 else bar.high >= p.stop_initial
+        hit_stop = bar.low <= p.stop_current if p.side > 0 else bar.high >= p.stop_current
         if hit_stop:
-            self.exit(bar.datetime, p.stop_initial, "STOP_LOSS_ENTRY_BAR")
+            self.exit(bar.datetime, p.stop_current, "STOP_LOSS_ENTRY_BAR")
 
     # ------------------------------------------------------------------ saídas
     def exit(self, when, price, reason):
@@ -151,7 +199,8 @@ class WDOReplayEngine:
             "trade_id": p.trade_id, "side": "LONG" if p.side > 0 else "SHORT",
             "entry_datetime": p.entry_datetime, "entry_price": p.entry_price, "entry_reason": p.entry_reason,
             "exit_datetime": when, "exit_price": exit_price, "quantity": p.quantity,
-            "stop_price_inicial": p.stop_initial, "target_price_inicial": p.target_initial, "exit_reason": reason,
+            "stop_price_inicial": p.stop_initial,
+            "target_price_inicial": float("nan") if p.target_initial is None else p.target_initial, "exit_reason": reason,
             "gross_pnl": gross, "costs": costs, "net_pnl": gross - costs, "duration": when - p.entry_datetime,
             "equity_after_trade": self.cash,
             "MAE": p.mae * self.c.point_value_brl * p.quantity, "MFE": p.mfe * self.c.point_value_brl * p.quantity,
@@ -160,28 +209,56 @@ class WDOReplayEngine:
         self.position = None
 
     def process_position(self, bar) -> None:
-        """Stop/alvo de uma posição aberta em barra anterior. Gap: stop pior, alvo melhor."""
+        """Saídas de uma posição aberta em barra anterior: horário, stop (inclusive trailing) e alvo.
+
+        Horário: saída a mercado na abertura da 1ª barra com horário >= o limite (antes de qualquer movimento
+        da barra). Stop/alvo com gap: stop pior, alvo melhor; ambos na mesma barra: política intrabar.
+        O trailing só é atualizado com esta barra depois de ela ser processada (vale para a seguinte).
+        """
         p = self.position
         if p is None:
+            return
+        if p.exit_deadline is not None and bar.datetime >= p.exit_deadline:
+            self.exit(bar.datetime, bar.open, "TIME_EXIT")
             return
         adverse = (p.entry_price - bar.low) if p.side > 0 else (bar.high - p.entry_price)
         favorable = (bar.high - p.entry_price) if p.side > 0 else (p.entry_price - bar.low)
         p.mae, p.mfe = max(p.mae, adverse), max(p.mfe, favorable)
+        has_target = p.target_initial is not None
         if p.side > 0:
-            hit_stop, hit_target = bar.low <= p.stop_initial, bar.high >= p.target_initial
-            stop_price, target_price = min(bar.open, p.stop_initial), max(bar.open, p.target_initial)
+            hit_stop = bar.low <= p.stop_current
+            hit_target = has_target and bar.high >= p.target_initial
+            stop_price = min(bar.open, p.stop_current)
+            target_price = max(bar.open, p.target_initial) if has_target else None
         else:
-            hit_stop, hit_target = bar.high >= p.stop_initial, bar.low <= p.target_initial
-            stop_price, target_price = max(bar.open, p.stop_initial), min(bar.open, p.target_initial)
+            hit_stop = bar.high >= p.stop_current
+            hit_target = has_target and bar.low <= p.target_initial
+            stop_price = max(bar.open, p.stop_current)
+            target_price = min(bar.open, p.target_initial) if has_target else None
+        stop_reason = "STOP_LOSS" if p.stop_current == p.stop_initial else "TRAILING_STOP"
         if hit_stop and hit_target:
             if self.c.intrabar_policy in ("adverse", "stop_first"):
                 self.exit(bar.datetime, stop_price, "STOP_INTRABAR_AMBIGUOUS")
             else:
                 self.exit(bar.datetime, target_price, "TARGET_INTRABAR_AMBIGUOUS")
         elif hit_stop:
-            self.exit(bar.datetime, stop_price, "STOP_LOSS")
+            self.exit(bar.datetime, stop_price, stop_reason)
         elif hit_target:
             self.exit(bar.datetime, target_price, "TAKE_PROFIT")
+        else:
+            self.update_trailing(bar)
+
+    def update_trailing(self, bar) -> None:
+        """Aperta o stop com o melhor preço de barras JÁ FECHADAS; nunca o afrouxa."""
+        p = self.position
+        if p is None or p.trail_points is None:
+            return
+        if p.side > 0:
+            p.best_price = max(p.best_price, bar.high)
+            p.stop_current = max(p.stop_current, round_tick(p.best_price - p.trail_points, self.c.tick_size))
+        else:
+            p.best_price = min(p.best_price, bar.low)
+            p.stop_current = min(p.stop_current, round_tick(p.best_price + p.trail_points, self.c.tick_size))
 
     # ------------------------------------------------------------------ sessão
     def start_session(self, session: pd.DataFrame) -> bool:
@@ -211,7 +288,7 @@ class WDOReplayEngine:
         if chosen is None:
             return False
         intent, raw_price, tag = chosen
-        self.open_position(bar.datetime, intent.side, raw_price, tag)
+        self.open_position(bar.datetime, intent.side, raw_price, tag, intent.exit)
         self.manage_entry_bar(bar)
         return True
 

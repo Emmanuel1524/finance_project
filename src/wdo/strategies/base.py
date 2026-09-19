@@ -12,7 +12,27 @@ A estratégia **decide**; o simulador **executa**. Contrato point-in-time:
 from __future__ import annotations
 
 from dataclasses import dataclass
+from datetime import time
 from typing import Any, Literal, Protocol, Sequence
+
+
+@dataclass(frozen=True)
+class ExitSpec:
+    """Instrução de saída de UM trade, definida pela estratégia no momento da entrada (motor >= 1.1.0).
+
+    Toda posição tem stop protetivo: exatamente um entre `stop_points` (distância ao preço de entrada) e
+    `stop_price` (nível absoluto, ex.: estrutura de mercado). Alvo opcional (`target_points` ou `target_price`;
+    sem alvo = sem take profit). `trailing_points`: stop que acompanha o melhor preço, atualizado só com barras
+    já fechadas (nunca com o extremo da barra de entrada nem da barra corrente). `exit_time`: saída a mercado
+    na abertura da 1ª barra com horário >= exit_time no dia da entrada. Distâncias e níveis devem ser calculados
+    pela estratégia só com informação point-in-time. Entrada inválida (stop do lado errado etc.) falha alto.
+    """
+    stop_points: float | None = None
+    stop_price: float | None = None
+    target_points: float | None = None
+    target_price: float | None = None
+    trailing_points: float | None = None
+    exit_time: time | None = None
 
 
 @dataclass(frozen=True)
@@ -25,6 +45,7 @@ class OrderIntent:
     tag: str = ""
     conflict_tag: str | None = None             # tag usada se várias ordens forem tocadas na mesma barra
     lifetime: Literal["bar", "session"] = "bar"
+    exit: ExitSpec | None = None                # None: stop/alvo do `Config` (comportamento do V0)
 
 
 @dataclass(frozen=True)

@@ -55,7 +55,7 @@ Baseado em **leitura** do código em 2026-09-18. Nada abaixo foi confirmado por 
 - Sem lockfile, ruff/mypy, CI, logging (`pyproject.toml` existe desde 2026-09-18).
 - Git iniciado em 2026-09-19; primeiro commit realizado.
 - Dependências com versões `>=` em `environment.yml`/`pyproject.toml` (pinar ao produtizar).
-- Testes (45): faltam paridade com o MT5, testes por propriedade (hypothesis), posição herdada entre dias e `END_OF_DATA` explícito.
+- Testes (77): faltam paridade com o MT5, testes por propriedade (hypothesis), posição herdada entre dias e `END_OF_DATA` explícito.
 - `metrics()` calcula `Consecutive Wins` de forma que precisa ser revisada (agrupamento por `signs`); verificar contra casos simples. [não verificado]
 
 ## Roadmap: portões e fases
@@ -76,13 +76,15 @@ Metodologia em [06](06_quant_finance_playbook.md); protocolo do agente em [07](0
 7. ~~**Guarda de partições:**~~ **feita** (`wdo.partitions`); carregadores/notebooks de pesquisa recusam dados fora do conjunto permitido (holdout inacessível por construção); *lookback* de aquecimento só com partições anteriores.
 8. ~~**Suíte de testes de vazamento**~~ **feita** ([05 §11](05_replay_trading_guide.md)) implementada e passando para o V0 (ela deve expor R1/R8 se forem reais).
 9. ~~Estrutura do registro de experimentos~~ criada (`experiments/`); falta o modelo dos blocos de integridade e overfitting de [07 §5](07_agent_protocol.md) em `decision.md`.
-10. **Motor congelado** (`ENGINE_VERSION 1.0.0`, `tests/test_engine_frozen.py`) — **feito**. **Restabelecer o Baseline V0 no conjunto de pesquisa** é o **primeiro passo da primeira run** (depois do commit do código congelado, para a proveniência apontar para ele). Deliberadamente **não** olhei o desempenho do V0 durante o G0, para o motor não ser ajustado por resultado. Os números atuais do V0 (amostra inteira, motor com R1–R5 em aberto) **não** são a referência.
+10. **Motor congelado** (`ENGINE_VERSION 1.1.0` desde a D8; a 1.0.0 foi o congelamento do G0; `tests/test_engine_frozen.py`) — **feito**. **Restabelecer o Baseline V0 no conjunto de pesquisa** é o **primeiro passo da primeira run** (depois do commit do código congelado, para a proveniência apontar para ele). Deliberadamente **não** olhei o desempenho do V0 durante o G0, para o motor não ser ajustado por resultado. Os números atuais do V0 (amostra inteira, motor com R1–R5 em aberto) **não** são a referência.
 
 ### G1 — Aprovação do usuário
 Aprova a metodologia e fecha D1–D7. Só então a Fase 1 começa.
 
 ### Fase 1 — Descoberta de estratégia
 Ciclo de [07 §5](07_agent_protocol.md) dentro do orçamento (D2), no conjunto de pesquisa, com consultas esporádicas à validação. Saída: uma ou mais arquiteturas promissoras **congeladas**, ou o resultado "nenhum edge convincente". Sem ajuste fino de limiares.
+
+**Lições da RUN-0001 incorporadas à metodologia (2026-09-19):** (1) o gargalo é a estrutura de saída (payoff 0,6): o V0 não é protegido e TP/SL podem ser redesenhados ([06 §1–§2](06_quant_finance_playbook.md)); (2) benchmark de entrada sem edge (placebo) obrigatório ([06 §8](06_quant_finance_playbook.md)); (3) limite de resolução estatística ([06 §12](06_quant_finance_playbook.md)); (4) rótulo de origem da hipótese e cautela com hipóteses vindas de decomposição ([06 §10](06_quant_finance_playbook.md)); (5) status BLOCKED e lacuna de capacidade de saída do motor (D8).
 
 ### G2 — Aprovação para a Fase 2
 Feita pelo usuário, após relatório da Fase 1 (todos os experimentos, inclusive rejeitados).
@@ -99,7 +101,7 @@ Em 2026-09-18, antes de existirem fronteiras de dados, o Baseline V0 foi executa
 
 ## Decisões metodológicas
 
-Status (2026-09-19): **D1–D7 decididas** (D6 provisória até o usuário informar custos reais). **Não há decisão metodológica pendente para começar a Fase 1**; falta apenas a autorização do usuário (G1) e o commit do código congelado.
+Status (2026-09-19): **D1–D7 decididas** (D6 provisória até o usuário informar custos reais). **D8 e D9 aprovadas** (D8: implementada no motor 1.1.0; D9: em vigor). A Fase 1 segue autorizada run a run pelo usuário (G1).
 
 - **D1 — Fronteiras pesquisa / validação / holdout. DECIDIDO em 2026-09-19 (imutáveis):** dados existentes (2026-01-02 → 2026-09-01). **Pesquisa 2026-01-02 → 2026-06-30** (efetivo fev–jun, aquecimento das EMAs D1); **validação 2026-07-01 → 2026-07-31**; **holdout 2026-08-03 → 2026-09-01**. Estimativa (ritmo do V0, ~0,8 trade/dia; depende do candidato): ~80 / ~19 / ~17 trades. Limitações aceitas: o holdout de ~1 mês é **checagem de sanidade, não prova**; a contaminação agregada do V0 continua registrada; dados a partir de 2026-09-02 ficam reservados como futuro.
 - **D2 — Orçamento de pesquisa. DECIDIDO: por tempo.** Cada prompt-task define X minutos; regras em [07 §6](07_agent_protocol.md). Salvaguardas mantidas como propostas (a confirmar): máx. 2 refinamentos por linhagem; encerrar uma família após 2 rejeições seguidas; consultas à validação limitadas (≤ 3 no total). Todo experimento conta como trial.
@@ -108,6 +110,8 @@ Status (2026-09-19): **D1–D7 decididas** (D6 provisória até o usuário infor
 - **D5 — Escopo do G0. APROVADO e IMPLEMENTADO em 2026-09-19:** correção das EMAs (R1), separação estratégia/simulador, convenção de entrada (R8) e barra de entrada (R9). Convenção adotada: entrada no `open` só é válida quando (i) o sinal vem de barras já **fechadas** (ex.: IFR de P4, referência de barras anteriores) ou (ii) o próprio `open` já satisfaz o gatilho (gap além do nível). Se o gatilho depende do `high/low` da barra corrente, a entrada ocorre **no nível do gatilho** (ou no `open`, se este já passou do nível), sempre com slippage contra e **dentro do range OHLC** da barra; depois da entrada, stop/alvo da própria barra são avaliados com ordem **adversa** (stop primeiro se ambos couberem). Teste de aceitação: mutação da mesma barra ([05 §11](05_replay_trading_guide.md)). Revisão de R2–R5 e R7 segue no G0.
 - **D6 — Premissas de execução únicas. DECIDIDO (provisório; confirmado em 2026-09-19): valores comuns de mercado até o usuário informar os exatos.** Cenário base provisório (**placeholders não verificados junto à B3/corretora; substituir quando os valores reais chegarem**): valor do ponto R$ 10; slippage 0,5 pt por lado (entrada e saída); custos totais R$ 1,00 por contrato por lado. Efeito em pontos por trade: `c ≈ 1,0 (slippage) + 0,2 (custos) = 1,2` ⇒ win rate de equilíbrio com alvo 6 / stop 10 ≈ `(10 + 1,2) / 16 = 70%` (62,5% sem custos). Rodar a grade de sensibilidade de execução (slippage 0 / 0,5 / 1 pt) para todos os candidatos. Aplicar em `configs/` no G0; ao chegar o valor real, o V0 e o placar são reexecutados. Gap além do stop (R4) e slippage no alvo (R5): tratamento conservador, a implementar no G0.
 - **D7 — Regimes e janelas. DECIDIDO em 2026-09-19 (delegado ao agente, calibrado para amostra pequena):** 2 grupos por dimensão, avaliados isoladamente, janela móvel de 20 pregões, grupo com < 15 trades é inconclusivo. Definições em [06 §11](06_quant_finance_playbook.md).
+- **D8 — Capacidade de saída do motor. APROVADA e IMPLEMENTADA em 2026-09-19 (motor 1.1.0; tarefa separada de qualquer experimento; aguarda commit autorizado pelo usuário).** O motor 1.0.0 só tem stop/alvo em pontos fixos do `Config` ([05 §10](05_replay_trading_guide.md)). Proposta: motor 1.1.0 em que a estratégia devolva, por entrada, uma especificação de saída (preço de stop, alvo opcional, saída por horário, trailing opcional), com a **mesma semântica conservadora** (gap, hipótese adversa, barra de entrada), testes novos e regressão que prove que o V0 continua idêntico bit a bit; depois, reexecutar V0 e candidatos. Desbloqueia saídas adaptativas/por estrutura, time-stop e hipóteses de fim de dia. Direção aprovada: saídas **adaptativas** (ex.: ATR) e por estrutura. Implementada como `ExitSpec` ([05 §10](05_replay_trading_guide.md)); o V0 ficou idêntico bit a bit (testes de regressão e comparação 1.0.0 × 1.1.0 nos dados de pesquisa), então o baseline EXP-0000 da RUN-0001 continua válido.
+- **D9 — Classificação de regras do V0 como desenho. APROVADA em 2026-09-19 (o usuário quer o sistema mais livre).** Janela de sessão (09:00–10:30) e limite de 1 trade/dia tratados como **escolhas de desenho** (desafiáveis com hipótese; outras janelas do dia e mais de um trade por dia, inclusive em horário específico, são permitidos; trades no mesmo dia são correlacionados e não contam como amostras independentes), aplicados pelo motor de forma consistente; tamanho da posição fixo em 1 contrato. Os pressupostos de simulação (custos, slippage, política intrabar, execução conservadora, partições) seguem protegidos.
 
 ## Perguntas em aberto para o usuário
 

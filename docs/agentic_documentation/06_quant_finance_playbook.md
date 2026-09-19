@@ -13,7 +13,11 @@ O agente atua como **pesquisador quant / systematic trader profissional**, não 
 5. hipóteses explícitas sobre tentativa e erro cega;
 6. consistência ajustada ao risco sobre alto risco/alto retorno.
 
-**Baseline V0** é a estratégia atual (EA v1.35 replicado). É o ponto de partida e o comparador de todos os candidatos; **não** é um desenho que precise ser preservado. Ela nunca é sobrescrita (ver [07 §4](07_agent_protocol.md)).
+**Baseline V0 é uma referência, não uma restrição.** É a estratégia atual (EA v1.35 replicado) e serve como referência reproduzível, comparador dos candidatos, hipótese inicial e implementação conhecida. **Não** é uma estratégia ótima.
+
+- **Preservar:** a implementação do V0, seus resultados, a reprodutibilidade e a proveniência (nunca é sobrescrita; [07 §4](07_agent_protocol.md)) e a semântica de execução do motor congelado.
+- **Não proteger por padrão:** regras de entrada e saída, TP 6 / SL 10 e a relação risco/retorno, escolha de indicadores, limiares (IFR, EMAs, offset do canal), janela de sessão, limite de 1 trade/dia, filtros e a suposição de quais componentes são úteis. Tudo isso pode ser desafiado ou substituído na Fase 1 com uma hipótese clara (mercado, gestão de risco, estatística, execução ou robustez). Candidatos nunca sobrescrevem o V0, mas podem diferir muito dele.
+- **O que continua protegido** é a *integridade da simulação* (cronologia, sem look-ahead, execução conservadora, custos e slippage, partições de dados, versão do motor), não o desenho da estratégia. A lista exata está em [05 §10](05_replay_trading_guide.md). Tornar esses pressupostos de simulação flexíveis "para melhorar o resultado" continua sendo p-hacking.
 
 A pergunta central da Fase 1 é: **"que lógica de trading parece capaz de produzir um edge robusto, repetível e de risco controlado?"** — e não "que combinação de regras dá o maior retorno histórico?". O agente tenta **falsificar** ideias fracas; não força o backtest a ficar lucrativo. "Nenhum edge convincente" é um resultado de pesquisa válido.
 
@@ -22,12 +26,21 @@ A pergunta central da Fase 1 é: **"que lógica de trading parece capaz de produ
 | | **Fase 1 — Descoberta de estratégia** | **Fase 2 — Otimização de parâmetros** |
 |---|---|---|
 | Pergunta | Qual arquitetura/lógica tem edge robusto? | Que regiões de parâmetros tornam *essa arquitetura* mais robusta? |
-| Permitido | Mudanças **estruturais** com hipótese de mercado: lógica de entrada/saída, trend-following vs. mean-reversion, detecção de regime, filtros de volatilidade/momentum, níveis do dia anterior, comportamento da abertura, famílias de sinal (IFR ou outras), combinação de sinais independentes, filtros de *não operar*, filtros de sessão/condição de mercado | Busca sistemática de limiares, hiperparâmetros, walk-forward de tuning, análise de sensibilidade paramétrica |
-| Proibido | Ajuste fino de limiares e busca exaustiva. Trocar IFR 14 por 13 ou stop 10 por 9,5 **não** é descoberta, salvo hipótese estrutural clara | Começar antes de existir ≥1 arquitetura promissora aprovada pelo usuário |
+| Permitido | Mudanças **estruturais** com hipótese clara, incluindo a arquitetura de risco e grandes mudanças de parâmetro ou de forma funcional que testem uma hipótese distinta (stop/alvo fixos → adaptativos, relação risco/retorno, limiar fixo → normalizado pela volatilidade): lógica de entrada/saída, trend-following vs. mean-reversion, detecção de regime, filtros de volatilidade/momentum, níveis do dia anterior, comportamento da abertura, famílias de sinal (IFR ou outras), combinação de sinais independentes, filtros de *não operar*, filtros de sessão/condição de mercado | Busca sistemática de limiares, hiperparâmetros, walk-forward de tuning, análise de sensibilidade paramétrica |
+| Proibido | **Busca numérica local** (hill-climbing) e busca exaustiva: TP 6→6,5→7, multiplicador de ATR 1,0→1,1→1,2, IFR 14→13, escolhidos porque melhoram o histórico. Isso é Fase 2 | Começar antes de existir ≥1 arquitetura promissora aprovada pelo usuário |
 | Dados | Conjunto de pesquisa (livre) + validação (esporádica) | Definido no início da fase, com aprovação |
 | Início | Somente após aprovação explícita do usuário (portão em [08](08_roadmap_and_open_questions.md)) | Somente após conclusão da Fase 1 e nova aprovação |
 
-**Estrutural × micro-ajuste (Fase 1).** Preferir: mudar a arquitetura de entrada ou de saída; introduzir ou remover uma família de sinal; separar regimes de mercado; comportamento dependente de volatilidade; lógica de momentum × reversão à média; filtros de *não operar*. Evitar microvariações (IFR 14→13, stop 10→9,5, EMA 17→18) **salvo** se necessárias para testar uma hipótese estruturalmente diferente — e então o que se registra é a hipótese estrutural. Ajuste fino de parâmetros é Fase 2.
+**Mudança estrutural de parâmetros (Fase 1) × otimização (Fase 2).** A Fase 1 **pode** mudar parâmetros de forma substancial quando isso é necessário para testar uma hipótese diferente. Exemplos válidos: stop fixo → stop adaptativo à volatilidade (ATR); alvo fixo → alvo por estrutura de mercado; relação risco/retorno assimétrica ↔ simétrica; saídas de distância fixa → saídas em ATR; arquiteturas de saída diferentes por regime; remover um indicador cuja lógica parece desnecessária; limiar fixo → quantidade normalizada ou relativa à volatilidade. São experimentos de *desenho* de estratégia. Exemplo já feito: o EXP-0003 da RUN-0001 levou o alvo de 6 para 20 pontos como hipótese sobre a estrutura de payoff.
+
+**Regra operacional (verificável):**
+1. Para uma hipótese, testa-se **uma** alternativa (valor ou forma funcional) escolhida *a priori* pelo racional e registrada **antes** de rodar; não se varre uma faixa.
+2. Dentro de uma linhagem, re-testar **vizinhos** de um valor já testado do mesmo parâmetro só é permitido com um **mecanismo novo** (nova hipótese). Sem isso é hill-climbing (Fase 2).
+3. Antes de mudar qualquer parâmetro existente, registrar: (i) por que a suposição atual pode ser estruturalmente inadequada; (ii) que comportamento alternativo está sendo testado; (iii) por que a mudança é materialmente diferente; (iv) que resultado sustentaria ou rejeitaria a hipótese. Ordem: hipótese → mudança estrutural → replay → avaliação; **nunca** observar → ajustar → observar → ajustar até as métricas melhorarem.
+
+**Estratégias adaptativas são candidatas válidas, não superiores por construção.** O comportamento pode depender de condições observáveis point-in-time (ATR, volatilidade realizada, range de abertura, range recente, força de tendência, momentum, distância a níveis do dia anterior, regime), calculadas só com barras fechadas, **no lado da estratégia** (não no motor congelado) e cobertas pelos testes de vazamento ([05 §5, §11](05_replay_trading_guide.md)). Todo candidato adaptativo é comparado com a sua **contraparte fixa** (ablação/controle) e só é mantido se os graus de liberdade extras melhorarem materialmente robustez (ver disciplina de complexidade, §5). Cada multiplicador ou limiar de um componente adaptativo **conta** como parâmetro.
+
+Pergunta central da Fase 1: **"que combinação de lógica de trading, arquitetura de risco e comportamento adaptativo parece capaz de produzir um edge robusto e repetível?"**, e não "quais ajustes numéricos vizinhos maximizam o backtest?". O agente tem ampla liberdade de redesenho e disciplina estrita contra curve fitting.
 
 Execução: **sensibilidade de execução** (slippage, custos, `intrabar_policy`, atraso de entrada) é teste de robustez, não otimização, e vale nas duas fases — ver §6.
 
@@ -74,7 +87,7 @@ Comparação entre candidatos é por **dominância e trade-offs explícitos** co
 
 **Viés de seleção:** um torneio sobre o mesmo conjunto de pesquisa produz vencedores otimistas (*winner's curse*): quanto mais experimentos, maior a chance de o top 3 refletir sorte. Por isso todo experimento conta como trial, o placar é julgado só no conjunto de pesquisa, e apenas o top 3 é elegível à validação (consultas limitadas, [§6](#6-política-de-dados)). Espera-se degradação na validação; ela é o teste, não um erro.
 
-**Disciplina de complexidade: complexidade adicional precisa merecer seu lugar.** Um candidato mais complexo só é preferido se a lógica adicional melhorar **materialmente** robustez, drawdown, estabilidade, consistência ou comportamento de cauda; melhora marginal nas métricas históricas não justifica complexidade substancial. Com desempenho amplamente comparável, preferir a estratégia mais simples. Evitar "estratégias Frankenstein": regras empilhadas porque cada uma melhorou um pouco o backtest. Toda regra adicionada tem hipótese própria e é avaliada por **ablação** (remover a regra e comparar); se o resultado não piora de forma material, a regra sai.
+**Disciplina de complexidade: complexidade adicional precisa merecer seu lugar.** Um candidato mais complexo só é preferido se a lógica adicional melhorar **materialmente** robustez, drawdown, estabilidade, consistência ou comportamento de cauda; melhora marginal nas métricas históricas não justifica complexidade substancial. Com desempenho amplamente comparável, preferir a estratégia mais simples. Evitar "estratégias Frankenstein": regras empilhadas porque cada uma melhorou um pouco o backtest. Toda regra adicionada tem hipótese própria e é avaliada por **ablação** (remover a regra e comparar); se o resultado não piora de forma material, a regra sai. **Contabilidade de complexidade:** todo candidato declara seu número de parâmetros de desenho livres (graus de liberdade) e a premissa do V0 que desafia; entre desempenhos semelhantes, vence a arquitetura com menos graus de liberdade. Sofisticação não é qualidade.
 
 ## 6. Política de dados
 
@@ -101,7 +114,7 @@ O agente **não deve**:
 - ajustar regras repetidamente contra o **mesmo** conjunto inteiro;
 - continuar experimentando até "aparecerem" boas métricas;
 - selecionar estratégias só por maximizarem o PnL histórico;
-- alterar repetidamente pequenos limiares porque melhoram o resultado histórico;
+- fazer busca numérica local (hill-climbing) em parâmetros, ou re-testar vizinhos de um valor já testado sem mecanismo novo (regra operacional da §2), porque melhoram o resultado histórico;
 - adicionar regras sem hipótese de mercado prévia;
 - acumular regras em estratégias cada vez mais complexas sem justificativa (ver disciplina de complexidade, §5);
 - consultar a validação depois de cada experimento;
@@ -124,6 +137,8 @@ Expectativa = p·G − (1−p)·L − c          Win rate de equilíbrio p* = (L
 ```
 No V0 (G=6, L=10): `p* = 62,5%` sem custo; cada ponto de custo eleva `p*` em `1/16 ≈ 6,25 p.p.`. Estratégias com payoff < 1 vivem de alta taxa de acerto e são muito sensíveis a custo, slippage e stops que "escorregam" (gap além do stop). Sempre comparar `p` observado (com IC) a `p*`.
 
+**Benchmark de entrada sem edge (obrigatório na Fase 1).** Numa caminhada sem drift, a probabilidade de atingir o alvo `G` antes do stop `L` é `L/(G+L)`; com custo `c` a expectativa de uma entrada *sem* edge é `−c` por trade. No V0 (G=6, L=10): ~62,5% de acerto e ~−R$ 12 por trade. Como o benchmark depende da estrutura de saída, **todo experimento reporta o excesso sobre um placebo**: entradas com direção aleatória, nos mesmos instantes, com a **mesma arquitetura de saída, custos e slippage** (sementes fixas, vários sorteios). Um candidato só tem "edge" se superar a distribuição do placebo com folga maior que o ruído amostral (§12). Lição da RUN-0001: os 8 candidatos ficaram perto do benchmark.
+
 ## 9. Gestão de risco
 
 - **Por trade:** stop fixo; tamanho definido por risco, não convicção. **Por dia/estratégia:** stop diário de perda e limite de drawdown que aciona revisão/desligamento.
@@ -134,6 +149,7 @@ No V0 (G=6, L=10): `p* = 62,5%` sem custo; cada ponto de custo eleva `p*` em `1/
 
 ## 10. Geração de hipóteses (Fase 1)
 
+- **Origem da hipótese** (rótulo obrigatório): *literatura*, *mecanismo de mercado* ou *decomposição* (do V0 ou de um candidato no conjunto de pesquisa). Decompor para formular hipóteses é permitido, mas a hipótese vinda de decomposição é **data-informed**: precisa ser rotulada como tal, nunca é promovida nem levada a um checkpoint de validação sem essa ressalva, e deve ser reforçada por um mecanismo independente. Preferir literatura e mecanismo. (Na RUN-0001, os EXP-0001/0004/0005/0006/0007 nasceram de decomposição.)
 - Cada hipótese tem **racional de mercado** (quem está do outro lado? por que o edge deveria existir?) antes do código. Exemplos válidos: abertura com forte momentum torna trades de fade menos atraentes; aberturas de baixa volatilidade favorecem reversão à média; certos níveis do dia anterior funcionam como referências de liquidez; filtros direcionais reduzem trades contra-tendência estruturalmente ruins.
 - Decompor o V0 **no conjunto de pesquisa** por padrão (P1–P4), direção, dia da semana, faixa de IFR, distância ao PDH/PDL, gap, volatilidade do dia anterior é diagnóstico para *formular* hipóteses, não para escolher limiares.
 - Microestrutura: a abertura tem spread e volatilidade atípicos; o modelo de custo da abertura difere do meio do dia.
@@ -154,6 +170,7 @@ Tratar como **frágil** a estratégia cuja rentabilidade se concentra em um per�
 
 ## 12. Estatística para amostras pequenas
 
+- **Limite de resolução:** o erro-padrão do win rate é `sqrt(p(1−p)/n)`: com ≤ ~100 trades é ~5 p.p. Diferenças menores que ~2 erros-padrão (win rate, expectância, comparação com o placebo) **não são evidência**; declarar isso na avaliação.
 - Poucos trades → **IC largos**: bootstrap por bloco (preserva autocorrelação), testes não paramétricos.
 - **Múltiplos testes:** cada variante consome graus de liberdade; corrigir (Bonferroni/Holm, DSR, Reality Check/SPA) usando a contagem de trials registrada.
 - Desconfiar de Sharpe > 2–3 em backtest simples: investigar vazamento, custo e overfitting antes.
