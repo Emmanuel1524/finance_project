@@ -1,0 +1,85 @@
+{
+ "engine_version": "1.0.0",
+ "strategy": "exp0007_outside_range_fade",
+ "trade_count": 17,
+ "net_pnl": -224.0,
+ "gross_profit": 632.0,
+ "gross_loss": 856.0,
+ "profit_factor": 0.738,
+ "win_rate": 52.94,
+ "avg_win": 70.22,
+ "avg_loss": -107.0,
+ "payoff": 0.656,
+ "expectancy": -13.18,
+ "avg_duration_min": 6.5,
+ "max_consec_wins": 2,
+ "max_consec_losses": 2,
+ "max_drawdown_brl": -484.0,
+ "max_drawdown_pct": 4.84,
+ "max_days_underwater": 86,
+ "monthly_pnl": {
+  "2026-02": -54.0,
+  "2026-03": -215.0,
+  "2026-04": -55.0,
+  "2026-05": 61.0,
+  "2026-06": 39.0
+ },
+ "months_positive": "2/5",
+ "max_month_share": null,
+ "rolling20_min": -268.0,
+ "rolling20_pos_frac": 0.204,
+ "top5_trades_share": 0.665,
+ "top5_days_share": 0.665,
+ "worst_trade": -107.0,
+ "worst_5_sum": -535.0,
+ "by_side": {
+  "LONG": {
+   "n": 9,
+   "pnl": 152.0
+  },
+  "SHORT": {
+   "n": 8,
+   "pnl": -376.0
+  }
+ },
+ "by_entry": {
+  "OUTSIDE_FADE": {
+   "n": 17,
+   "pnl": -224.0,
+   "wr": 52.9
+  }
+ },
+ "entry_bar_exits": 5,
+ "regime_vol_high_next": {
+  "vol_alta": {
+   "n": 5,
+   "pnl": 100.0,
+   "status": "inconclusivo"
+  },
+  "vol_baixa": {
+   "n": 12,
+   "pnl": -324.0,
+   "status": "inconclusivo"
+  }
+ },
+ "regime_up_next": {
+  "alta_5d": {
+   "n": 5,
+   "pnl": 105.0,
+   "status": "inconclusivo"
+  },
+  "baixa_5d": {
+   "n": 12,
+   "pnl": -329.0,
+   "status": "inconclusivo"
+  }
+ },
+ "gates": {
+  "min_trades": false,
+  "max_drawdown": true,
+  "top5_trades": false,
+  "month_concentration": false,
+  "expectancy_positive": false
+ },
+ "gates_pass": false
+}

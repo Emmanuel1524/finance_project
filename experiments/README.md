@@ -9,12 +9,15 @@ experiments/
 ├── README.md
 ├── leaderboard.md                     # top 3 global + histórico de entradas/saídas (append-only)
 └── RUN-0001_2026-09-19_<slug>/        # uma run = um prompt-task do usuário
+    ├── registry.csv                   # 1 linha por experimento (id, pai, ramo, família, decisão, métricas)
+    ├── research_notes.md, run_report.md, tools.py   # pesquisa externa, relatório da run, utilitário de avaliação
     ├── run.md                         # prompt do usuário, orçamento (X minutos), início/fim,
     │                                  # commit git, versão do motor, hash e fronteiras dos dados,
     │                                  # Config-base (custos/slippage), nº de experimentos
     ├── EXP-0001_<slug>/
     │   ├── hypothesis.md              # hipótese + racional de mercado (escrito ANTES de rodar)
-    │   ├── config.toml                # Config completa usada
+    │   ├── strategy_config.json       # estratégia + Config-base usada (config.toml em runs futuras é equivalente)
+    │   ├── trades.csv, equity.csv     # trades e equity de fim de dia
     │   ├── metrics.json               # métricas, diagnósticos, IC, comparação com o V0
     │   └── decision.md                # blocos Integrity/Overfitting, KEEP/REJECT/REFINE, lições
     └── EXP-0002_<slug>/ ...

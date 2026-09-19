@@ -1,0 +1,110 @@
+{
+ "engine_version": "1.0.0",
+ "strategy": "exp0003_v0_trend_aligned",
+ "trade_count": 68,
+ "net_pnl": -911.0,
+ "gross_profit": 2192.0,
+ "gross_loss": 3103.0,
+ "profit_factor": 0.706,
+ "win_rate": 57.35,
+ "avg_win": 56.21,
+ "avg_loss": -107.0,
+ "payoff": 0.525,
+ "expectancy": -13.4,
+ "avg_duration_min": 13.2,
+ "max_consec_wins": 7,
+ "max_consec_losses": 6,
+ "max_drawdown_brl": -1474.0,
+ "max_drawdown_pct": 14.74,
+ "max_days_underwater": 98,
+ "monthly_pnl": {
+  "2026-02": -226.0,
+  "2026-03": -778.0,
+  "2026-04": -4.0,
+  "2026-05": -58.0,
+  "2026-06": 155.0
+ },
+ "months_positive": "1/5",
+ "max_month_share": null,
+ "rolling20_min": -940.0,
+ "rolling20_pos_frac": 0.252,
+ "top5_trades_share": 0.178,
+ "top5_days_share": 0.178,
+ "worst_trade": -107.0,
+ "worst_5_sum": -535.0,
+ "by_side": {
+  "LONG": {
+   "n": 29,
+   "pnl": -318.0
+  },
+  "SHORT": {
+   "n": 39,
+   "pnl": -593.0
+  }
+ },
+ "by_entry": {
+  "P1_EMA": {
+   "n": 30,
+   "pnl": -525.0,
+   "wr": 53.3
+  },
+  "P2_HIGH": {
+   "n": 18,
+   "pnl": -166.0,
+   "wr": 61.1
+  },
+  "P2_LOW": {
+   "n": 10,
+   "pnl": 50.0,
+   "wr": 70.0
+  },
+  "P3_LIMIT": {
+   "n": 1,
+   "pnl": -107.0,
+   "wr": 0.0
+  },
+  "P3_STOP": {
+   "n": 7,
+   "pnl": -269.0,
+   "wr": 42.9
+  },
+  "P4_RSI": {
+   "n": 2,
+   "pnl": 106.0,
+   "wr": 100.0
+  }
+ },
+ "entry_bar_exits": 10,
+ "regime_vol_high_next": {
+  "vol_alta": {
+   "n": 39,
+   "pnl": -883.0,
+   "status": "ok"
+  },
+  "vol_baixa": {
+   "n": 29,
+   "pnl": -28.0,
+   "status": "ok"
+  }
+ },
+ "regime_up_next": {
+  "alta_5d": {
+   "n": 29,
+   "pnl": -703.0,
+   "status": "ok"
+  },
+  "baixa_5d": {
+   "n": 39,
+   "pnl": -208.0,
+   "status": "ok"
+  }
+ },
+ "gates": {
+  "min_trades": true,
+  "max_drawdown": true,
+  "top5_trades": true,
+  "month_concentration": false,
+  "expectancy_positive": false
+ },
+ "gates_pass": false
+}
