@@ -8,6 +8,7 @@ Registro **versionado e imutável** da pesquisa de estratégias (Fase 1). Não �
 experiments/
 ├── README.md
 ├── leaderboard.md                     # top 3 global + histórico de entradas/saídas (append-only)
+├── knowledge.md                       # livro de aprendizados: hipóteses testadas, vereditos, condições, reabertura
 └── RUN-0001_2026-09-19_<slug>/        # uma run = um prompt-task do usuário
     ├── registry.csv                   # 1 linha por experimento (id, pai, ramo, família, decisão, métricas)
     ├── research_notes.md, run_report.md, tools.py   # pesquisa externa, relatório da run, utilitário de avaliação
@@ -29,3 +30,4 @@ experiments/
 - Baseline V0 e candidatos: cada `hypothesis.md` indica o **pai** (V0 ou outro candidato).
 - Nenhum dado bruto ou de mercado é copiado para cá (só métricas e configurações); dados ficam em `data/`.
 - Campos do registro (por experimento; `registry.csv`, `hypothesis.md`, `decision.md`), além dos já usados: `hypothesis_source` (literatura | mecanismo | decomposição), `assumptions_challenged` (premissas do V0 desafiadas), `degrees_of_freedom`, `placebo_excess` e o status **BLOCKED** para hipóteses não expressáveis no motor congelado (docs 07 §4–§5).
+- **Sempre melhorando:** antes de cada experimento consulte `knowledge.md` (checagem de novidade); ao fim da run atualize-o com uma linha por hipótese testada (veredito, evidência, condições, condição de reabertura), sem apagar linhas anteriores. Não se re-testa sem motivo de reabertura (docs 06 §10).

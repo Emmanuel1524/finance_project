@@ -1,0 +1,8 @@
+# EXP-0009 — ORB de 5 min com saída adaptativa (stop por range, trailing, sem alvo, saída 17:55)
+Pai: RUN-0001/EXP-0002 (reaberto). Ramo: Opening-Momentum. Família: momentum + arquitetura de saída.
+**hypothesis_source:** literatura (Zarattini & Aziz 2023: stop apertado + saída no fim do dia; variante TQQQ com stop de 5% do ATR e sem alvo) + mecanismo (assimetria positiva de trend following).
+**Premissa do V0 desafiada:** payoff 0,6 com stop 10 / alvo 6 fixos (e a extensão a alvo 20 fixo).
+**Motivo de reabertura (knowledge.md):** (i) MECANISMO NOVO. Na RUN-0001 o ORB só foi testado com saída fixa (EXP-0002/0003: NÃO SUSTENTADO sob saída fixa); o motor 1.1.0 agora permite stop adaptativo, trailing, sem alvo e saída por horário. Não se testam vizinhos de 6/10/20.
+**Hipótese:** a continuação da 1ª barra existe mas é capturada por poucos movimentos grandes; um alvo curto a trunca e o custo domina. Com stop proporcional ao range do dia anterior, trailing e saída no fim do dia, a expectância após custos supera o placebo.
+**Os 4 pontos (06 §2):** (i) 10/6 (e 20) fixos truncam ganhos e ignoram a volatilidade do dia; (ii) stop = 0,25 × range do dia anterior, trailing com a mesma distância, sem alvo, saída 17:55; (iii) arquitetura diferente (assimetria positiva), não um vizinho numérico; (iv) sustenta: expectância > 0 após custos e excesso sobre o placebo acima do ruído; rejeita: sem excesso sobre o placebo ou drawdown/concentração fora dos portões.
+**Uma alternativa a priori:** K = 0,25 (risco ~ o stop de 10 pts do V0 num dia típico). Graus de liberdade: 1 (K). Contraparte fixa: EXP-0010.

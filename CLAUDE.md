@@ -61,6 +61,7 @@ Diretrizes para trabalhar neste repositório. O objetivo de longo prazo é uma *
 ## 6. Pesquisa e avaliação da estratégia
 
 - Amostra: **pesquisa / validação / holdout final** por tempo (nunca aleatório); fronteiras exigem aprovação (D1). O holdout é invisível na Fase 1 e só é aberto uma vez, com autorização.
+- **Aprendizado cumulativo:** antes de cada experimento consultar `experiments/knowledge.md` (checagem de novidade); não re-testar o que já foi testado sem motivo de reabertura; o pai padrão é a fronteira atual; atualizar o livro ao fim da run (docs 06 §10, 07 §5).
 - **Baseline V0 é referência, não restrição:** regras, TP/SL, indicadores, limiares e sessão do V0 podem ser desafiados com hipótese; mudanças **estruturais** de parâmetro são Fase 1, hill-climbing numérico é Fase 2 (regra operacional em `docs/agentic_documentation/06` §2). Só a integridade da simulação é protegida (05 §10).
 - Otimização (walk-forward, mapas de estabilidade de parâmetros) pertence à **Fase 2**; na Fase 1, hipóteses estruturais com racional de mercado, orçamento finito de experimentos e registro imutável (inclusive dos rejeitados).
 - Múltiplos testes: registrar quantas configurações foram testadas; usar Deflated Sharpe Ratio / PBO ou ao menos Bonferroni/bootstrap antes de declarar edge.

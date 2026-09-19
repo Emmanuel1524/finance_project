@@ -14,7 +14,7 @@ Projeto quant em Python: backtest/replay de um EA MQL5 de abertura do WDO (B3). 
 6. Rodar `pytest -q` e reportar o resultado **real**. Nunca inventar métricas; diferenciar "verificado" de "inferido".
 7. Não instalar dependências, não commitar fora do autorizado (apenas o registro de cada run, uma vez ao fim do prompt-task), não apagar arquivos e não mudar defaults conservadores sem pedir.
 8. Responder ao usuário em **português (pt-BR)**.
-9. **Portão de pesquisa:** a Fase 1 (descoberta de estratégia) não está autorizada. Sem aprovação explícita: não rodar backtests de pesquisa, não alterar a estratégia, não otimizar parâmetros, não tocar validação/holdout. Depois de autorizada: hipótese explícita → replay → KEEP/REJECT/REFINE, orçamento finito, registro imutável de todos os experimentos, motor de replay congelado (ver `docs/agentic_documentation/06`, `07`, `05 §10`).
+9. **Portão de pesquisa:** a Fase 1 (descoberta de estratégia) não está autorizada. Sem aprovação explícita: não rodar backtests de pesquisa, não alterar a estratégia, não otimizar parâmetros, não tocar validação/holdout. Depois de autorizada: hipótese explícita → replay → KEEP/REJECT/REFINE, orçamento finito, registro imutável de todos os experimentos, checagem de novidade contra `experiments/knowledge.md` (não re-testar sem motivo de reabertura), motor de replay congelado (ver `docs/agentic_documentation/06`, `07`, `05 §10`).
 10. Ao terminar, escrever um handoff (formato em `07_agent_protocol.md`).
 
 ## Comandos (PowerShell, Windows)

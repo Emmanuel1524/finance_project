@@ -1,6 +1,7 @@
 """Estratégias: contrato em `base.py`, regras do Baseline V0 em `baseline_v0.py`."""
 from .base import BarOpen, ExitSpec, OrderIntent, SessionDecision, SessionOpen, Strategy
 from .baseline_v0 import BaselineV0
+from .candidates_run2 import LateDayMomentumExit, OpeningRange30Breakout, OrbAdaptiveExit, OrbFixedExit, OrbStructuralStop, OrbStructuralVolGate, V0NoChannelScaledRR, V0NoChannelSymmetricRR, GapAndGoFillStop
 from .candidates import LateDayMomentum, OpeningMomentum, OutsideRangeFade, V0NoChannel, V0NoChannelVolGate, V0TrendAligned, V0VolGate
 
-__all__ = ["BarOpen", "ExitSpec", "OrderIntent", "SessionDecision", "SessionOpen", "Strategy", "BaselineV0", "V0VolGate", "OpeningMomentum", "V0TrendAligned", "V0NoChannel", "V0NoChannelVolGate", "OutsideRangeFade", "LateDayMomentum"]
+__all__ = ["BarOpen", "ExitSpec", "OrderIntent", "SessionDecision", "SessionOpen", "Strategy", "BaselineV0", "V0VolGate", "OpeningMomentum", "V0TrendAligned", "V0NoChannel", "V0NoChannelVolGate", "OutsideRangeFade", "LateDayMomentum", "OrbAdaptiveExit", "OrbFixedExit", "V0NoChannelScaledRR", "LateDayMomentumExit", "OpeningRange30Breakout", "OrbStructuralStop", "OrbStructuralVolGate", "V0NoChannelSymmetricRR", "GapAndGoFillStop"]

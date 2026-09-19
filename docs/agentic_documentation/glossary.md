@@ -22,6 +22,9 @@
 | **Placebo (entrada aleatória)** | Entradas de direção aleatória, nos mesmos instantes e com a mesma saída e custos do candidato; mede o "nível de zero edge" (06 §8) |
 | **Graus de liberdade** | Nº de parâmetros de desenho livres de um candidato; entra na contabilidade de complexidade (06 §5) |
 | **ExitSpec** | Instrução de saída por trade definida pela estratégia (stop por pontos/nível, alvo opcional, trailing, saída por horário); motor >= 1.1.0 (05 §10) |
+| **Livro de aprendizados** | `experiments/knowledge.md`: hipóteses testadas com veredito, evidência, condições e condição de reabertura (06 §10) |
+| **Checagem de novidade** | Consulta ao livro antes de cada experimento; sem motivo de reabertura não se re-testa (07 §5) |
+| **Fronteira atual** | Melhores candidatos até agora; pai padrão dos novos experimentos, no lugar do V0 (06 §10) |
 | **BLOCKED** | Hipótese não expressável no motor congelado; registrada e não executada com proxy distorcido (07 §5) |
 | **Origem da hipótese** | Rótulo: literatura, mecanismo de mercado ou decomposição (data-informed) (06 §10) |
 | **Padrão 1–4** | Regras de entrada do EA (ver 02) |

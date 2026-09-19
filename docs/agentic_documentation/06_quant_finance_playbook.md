@@ -78,7 +78,7 @@ O objetivo **não** é PnL, Profit Factor, win rate ou retorno máximos. Preferi
 
 Perfil desejado: downside controlado; crescimento estável do capital; frequência de trades razoável; Profit Factor robusto; relação saudável win rate × payoff; baixa dependência de outliers; baixa probabilidade de dano severo ao capital.
 
-Comparação entre candidatos é por **dominância e trade-offs explícitos** contra o Baseline V0 e entre si, dimensão a dimensão (ver critérios em [07 §5](07_agent_protocol.md)), não por ranking de um número.
+Comparação entre candidatos é por **dominância e trade-offs explícitos** contra o Baseline V0, contra a **fronteira atual** (pai padrão, ver §10) e entre si, dimensão a dimensão (ver critérios em [07 §5](07_agent_protocol.md)), não por ranking de um número.
 
 **Placar top 3 (sobrevivência).** A pesquisa mantém um placar global com os **3 melhores experimentos**: um experimento que passa nos portões e é melhor, dados os objetivos, entra no top 3 e o pior sai (a saída é do placar, nunca do registro). Como a Fase 1 **não tem função de otimização numérica com pesos**, "melhor" é ordinal:
 1. **Portões** (eliminatórios): integridade e revisão de overfitting limpas ([07 §5](07_agent_protocol.md)); não frágil ([§11](#11-robustez-temporal-e-concentração-de-pnl)); amostra mínima; critério absoluto (expectância positiva após custos), pois vencer o V0 é um piso baixo. **Limiares aprovados (D3, 2026-09-19), fixos antes da primeira run:** ≥ 30 trades no conjunto de pesquisa; drawdown máximo ≤ 15% do capital inicial; os 5 melhores trades ≤ 40% do lucro bruto; nenhum mês com mais de 40% do lucro total; expectância > 0 após custos.
@@ -154,6 +154,16 @@ No V0 (G=6, L=10): `p* = 62,5%` sem custo; cada ponto de custo eleva `p*` em `1/
 - Decompor o V0 **no conjunto de pesquisa** por padrão (P1–P4), direção, dia da semana, faixa de IFR, distância ao PDH/PDL, gap, volatilidade do dia anterior é diagnóstico para *formular* hipóteses, não para escolher limiares.
 - Microestrutura: a abertura tem spread e volatilidade atípicos; o modelo de custo da abertura difere do meio do dia.
 - Features de ML, se surgirem: point-in-time, defasagem explícita, teste de vazamento.
+
+### Aprendizado cumulativo ("sempre melhorando")
+
+A pesquisa acumula conhecimento e **não desce de nível**: não re-testa o que já foi testado e claramente não entregou resultado melhor, sem uma boa razão. Não é uma regra agressiva; é um registro, em uma linha, do porquê.
+
+1. **Livro de aprendizados** (`experiments/knowledge.md`): para cada hipótese/família, veredito, evidência, **condições do teste** (versão do motor, custos, arquitetura de saída, partição, amostra) e **condição de reabertura**. Atualizado ao fim de cada run; nunca se apagam linhas (nova evidência = nova linha datada). Um resultado só vale nas condições em que foi obtido.
+2. **Vereditos distintos:** REFUTADO (pior que o benchmark de zero edge com folga, ≳ 2 erros-padrão, amostra adequada) · NÃO SUSTENTADO (sem excesso demonstrável) · INCONCLUSIVO (amostra ou desenho insuficientes, ex.: < 30 trades) · BLOCKED/INVÁLIDO · PROMISSOR (data-informed). Com ≤ ~100 trades quase nada é "refutado": não confundir "não sustentado" com "provado sem edge".
+3. **Checagem de novidade (antes de cada experimento):** consultar o livro. Se a hipótese, ou algo materialmente equivalente, já foi testada, o experimento só prossegue com um **motivo de reabertura** registrado: (i) **mecanismo novo** (ex.: capacidade do motor que antes não existia); (ii) **premissa alterada** (custos reais, série corrigida); (iii) **evidência inconclusiva** refeita com melhor desenho; (iv) **checkpoint de validação** planejado. Reabrir vizinhos numéricos de um valor já testado continua proibido sem mecanismo novo (§2).
+4. **Fronteira atual como pai padrão:** vencer o V0 é um piso baixo. Por padrão o pai de um novo experimento é o melhor candidato da fronteira atual (o V0 só quando a hipótese é sobre ele) e o resultado é comparado com o V0, com o pai e com o placebo. Cada experimento deve **elevar** a fronteira, ou explicar o que ensina.
+5. **Ressalvas:** o degrau que sobe também acumula snooping na mesma partição; a contagem cumulativa de tentativas é reportada em toda run e nada é promovido sem checkpoint de validação. A exploração de famílias diferentes (30–40% do esforço) continua obrigatória para o "sempre melhorando" não virar máximo local.
 
 ## 11. Robustez temporal e concentração de PnL
 

@@ -44,6 +44,7 @@ Objetivo: dois ou mais agentes trabalharem no mesmo projeto **sem se contradizer
 - **Registro de experimento (append-only)** — campos obrigatórios:
   `ID do experimento` · `data/agente` · `hipótese`, `racional de mercado`, `origem da hipótese` (literatura / mecanismo / decomposição) e `premissa(s) do V0 desafiada(s)` (registrados **antes** de rodar) · `pai` · `mudança implementada` (o que e onde) · `versão do motor e do código` · `conjunto de dados usado (fronteiras, hash)` · `Config completa (custos, slippage, política intrabar)` · `métricas + diagnósticos + IC` · `excesso sobre o placebo` · `graus de liberdade` (parâmetros de desenho livres) · `comparação com o Baseline V0` · `revisão de integridade` e `revisão de overfitting` (blocos da §5) · `decisão: KEEP / REJECT / REFINE` · `lições aprendidas` · `consumo de orçamento`.
 - **Experimentos falhos são resultados válidos:** nunca apagar, sobrescrever nem omitir. Correções a um registro entram como nova entrada que referencia a anterior.
+- **Livro de aprendizados:** `experiments/knowledge.md` (regras em [06 §10](06_quant_finance_playbook.md)). **Consultá-lo antes de cada experimento** (checagem de novidade) e **atualizá-lo ao fim da run**, sem apagar linhas (nova evidência = nova linha datada). Vale para a run seguinte só o que estiver ali.
 - **Local:** `experiments/`, versionado no git (D4 decidida em 2026-09-19). **Cada prompt-task do usuário é uma run**: subdiretório `experiments/RUN-NNNN_<data>_<slug>/` com `run.md` (prompt, orçamento em minutos, início/fim, commit, versão do motor, hash e fronteiras dos dados) e uma pasta `EXP-NNNN_<slug>/` por experimento (`hypothesis.md`, `config.toml`, `metrics.json`, `decision.md`). O placar global está em `experiments/leaderboard.md`. Layout completo em `experiments/README.md`. Resultados gerados em `outputs/` **não** são o registro (é ignorado no git).
 - **Commits (autorizado em 2026-09-19):** o registro da run (`run.md`, os `EXP-*` e o `leaderboard.md`) é commitado **uma única vez, ao fim do prompt-task** — um commit por run, **nunca** um commit por experimento ou por passo. Qualquer outro commit (código, docs) só a pedido do usuário. A mensagem segue o padrão do projeto e inclui a atribuição do agente.
 
@@ -54,6 +55,7 @@ hipótese → implementação → teste → resultado → decisão (KEEP / REJEC
 ```
 **Nunca** o inverso (resultado → explicação inventada depois): uma explicação pós-resultado é hipótese nova e precisa de novo teste ([06 §7](06_quant_finance_playbook.md)).
 
+0. **Checagem de novidade e pai.** Consultar `experiments/knowledge.md`: a hipótese (ou uma materialmente equivalente) já foi testada? Se sim, registrar o **motivo de reabertura** (mecanismo novo, premissa alterada, evidência inconclusiva refeita, checkpoint de validação) ou **não rodar**. O **pai padrão é a fronteira atual** (melhor candidato do leaderboard/fronteira; o V0 só se a hipótese for sobre ele); comparar sempre com o V0, com o pai e com o placebo. Reportar a contagem **cumulativa** de tentativas.
 1. **Hipótese primeiro**, com racional de mercado (exemplos em [06 §10](06_quant_finance_playbook.md)), origem rotulada e premissa do V0 desafiada, registrada **antes** de rodar. Sem hipótese, não há experimento. Nunca mudar a estratégia aleatoriamente para melhorar métricas históricas. Ao mudar um parâmetro existente, registrar os 4 pontos e cumprir a regra operacional de [06 §2](06_quant_finance_playbook.md) (uma alternativa a priori; sem vizinhos sem mecanismo novo).
    - **Validade do desenho:** confirmar que a hipótese é expressável no motor congelado (ver capacidade de saída em [05 §10](05_replay_trading_guide.md)). Se não for, o experimento é **BLOCKED (capacidade do motor)**: registrar e **não** rodar um proxy distorcido (lição do EXP-0008).
 2. **Implementar** só a mudança estrutural necessária, sem tocar o motor de replay. **Revisão point-in-time obrigatória** para cada feature, indicador, filtro ou sinal novo:
@@ -88,6 +90,7 @@ Overfitting review:
    - **KEEP:** hipótese sustentada; integridade e overfitting limpos; nenhuma dimensão degrada materialmente frente ao V0 sem justificativa; não é frágil ([06 §11](06_quant_finance_playbook.md)); a complexidade adicional merece seu lugar; amostra suficiente. Só candidatos KEEP são elegíveis a consulta à validação.
    - **REJECT:** hipótese falsificada, amostra insuficiente, risco de cauda/drawdown inaceitável, dependência de outliers, ou revisão de overfitting desfavorável.
    - **REFINE:** hipótese parcialmente sustentada e existe uma mudança **estrutural** (não numérica) específica a testar. Refinamentos por linhagem são limitados (máx. 2; proposta mantida em D2).
+   - **INCONCLUSIVE:** a amostra ou o desenho não sustentam nem KEEP nem REJECT (ex.: < 30 trades, ou hipótese só parcialmente expressável); registrar o que faltaria para concluir. No livro de aprendizados vira INCONCLUSIVO, e pode ser refeito com melhor desenho.
 7. **Placar top 3 (D3):** experimento KEEP que passa nos portões é comparado com os do placar segundo [06 §5](06_quant_finance_playbook.md); se for melhor, entra e o pior sai. Registrar a entrada/saída e o motivo (dimensão a dimensão) em `experiments/leaderboard.md`.
 8. **Próximo experimento** deve testar uma hipótese materialmente diferente, salvo REFINE justificado.
 
@@ -135,6 +138,7 @@ Guardar em `docs/agentic_documentation/handoffs/AAAA-MM-DD_<agente>.md`.
 - Consultar ou "só dar uma olhada" na validação/holdout; resumir a série completa em notebooks de pesquisa.
 - Apagar, esconder ou reescrever experimentos ruins; relatar só os bons.
 - Continuar experimentando até "dar certo".
+- Re-testar uma hipótese já registrada em `experiments/knowledge.md` sem motivo de reabertura ("descer o nível") ou ignorar o livro de aprendizados.
 - Racionalização pós-resultado: inventar a hipótese depois de ver o número.
 - Empilhar regras porque cada uma melhora um pouco o backtest (estratégia "Frankenstein").
 - Aceitar ou reportar como válido um experimento com qualquer check de integridade em FAIL.
