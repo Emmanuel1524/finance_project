@@ -17,10 +17,11 @@
 | Arquivo | Tamanho aprox. | O que é |
 |---|---|---|
 | `reference/mt5/Robo_Abertura_WDO_Genial_v1.35.mq5` | 40 KB | Código-fonte MQL5 do EA v1.35 (antes `mt5_bot`, sem extensão). **Referência das regras.** |
-| `src/wdo/` | 7 módulos | Pacote Python: `config`, `data`, `indicators`, `engine` (replay bar-by-bar), `metrics`, `reporting` |
+| `src/wdo/` | 9 módulos | Pacote Python: `config`, `data`, `indicators`, `strategies/` (contrato + V0), `engine` (simulador 1.0.0), `partitions`, `metrics`, `reporting` |
 | `configs/wdo_default.toml` | — | Cenário padrão (`Config.from_toml`) |
 | `pyproject.toml` | — | Pacote `wdo` (src layout, instalado com `pip install -e .`) + config do pytest |
-| `tests/test_wdo_backtest.py` | 3 KB | 6 testes pytest |
+| `tests/` | 6 arquivos | 45 testes pytest (regras, execução, indicadores, vazamento, partições, regressão do motor) |
+| `experiments/` | — | Registro versionado da pesquisa (uma run por prompt-task) + leaderboard top 3 |
 | `notebooks/01_wdo_opening_backtest.ipynb` | 10 KB | Notebook de execução/auditoria. Agora lê `data/raw/wdo_data.csv` com `load_mt5_export` e executa backtest, gráficos e reconciliação (células antes comentadas foram ativadas em 2026-09-18) |
 | `environment.yml` | — | Ambiente conda `wdo-backtest` (obrigatório) |
 | `data/raw/wdo_data.csv` | 1,3 MB | 18.900 linhas de candles M5, 2026-01-02 → 2026-09-01 (exportação MT5) |
@@ -65,7 +66,7 @@ pytest -q
 jupyter notebook notebooks/01_wdo_opening_backtest.ipynb   # kernel "Python (wdo-backtest)"
 ```
 
-**Verificado em 2026-09-18** (Python 3.12.14, pandas 3.0.5): `pytest -q` → 6 passed; o notebook executa de ponta a ponta sem erros, lendo `data/raw/wdo_data.csv` via `load_mt5_export` (adaptador adicionado nesta data). O `.venv` (Python 3.14) está obsoleto.
+**Verificado em 2026-09-19** (Python 3.12.14, pandas 3.0.5, motor 1.0.0): `pytest -q` → 45 passed; o notebook executa de ponta a ponta sem erros, lendo `data/raw/wdo_data.csv` via `load_mt5_export` (adaptador adicionado nesta data). O `.venv` (Python 3.14) está obsoleto.
 
 **Aviso metodológico:** este resultado foi obtido na amostra inteira, antes de existir partição de dados, e conta como contaminação registrada (ver 08). É diagnóstico de pipeline, **não** referência de pesquisa; o Baseline V0 oficial será restabelecido no conjunto de pesquisa com o motor congelado.
 

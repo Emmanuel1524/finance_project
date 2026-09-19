@@ -81,8 +81,10 @@ finance_practice/
 ├── src/wdo/
 │   ├── config.py             # Config, round_tick
 │   ├── data.py               # loaders, validação, rollover
-│   ├── indicators.py         # RSI, EMAs point-in-time
-│   ├── engine.py             # ordens, posição, replay, run_backtest
+│   ├── indicators.py         # RSI, EMAs (candles fechados, point-in-time)
+│   ├── strategies/           # contrato Strategy + baseline_v0 (candidatos entram aqui)
+│   ├── engine.py             # simulador congelado (ENGINE_VERSION), run_backtest
+│   ├── partitions.py         # partições de dados e guarda (holdout inacessível)
 │   ├── metrics.py            # métricas
 │   └── reporting.py          # relatório e gráficos
 ├── tests/

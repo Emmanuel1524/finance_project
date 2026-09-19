@@ -10,14 +10,15 @@
 4. **Conservadorismo onde há incerteza:** com OHLC não se sabe se o high veio antes do low. Sempre resolver a ambiguidade contra a estratégia (`adverse`).
 5. **Auditabilidade:** cada decisão gera um evento com motivo.
 
-## 2. Ordem de processamento por barra (implementada)
+## 2. Ordem de processamento por barra (motor 1.0.0)
 
 Para cada dia → para cada barra M5 `b`:
 
-1. `process_position(b)`: atualiza MAE/MFE; testa stop e alvo. Se ambos na mesma barra → política intrabar (padrão: **stop**).
-2. Se `b` está na janela de operação: `process_pending(b)` (ordens stop/limit do Padrão 3), depois `signal(b, i)` (Padrões 1/2/4).
-3. Marca equity a mercado no `close`.
-4. Ao fim do dia: limpa pendentes, zera `day_state`.
+1. `process_position(b)`: posição aberta em barra **anterior**. Atualiza MAE/MFE; stop/alvo com gap (stop no pior entre o stop e a abertura; alvo no melhor). Stop e alvo na mesma barra → política intrabar (padrão: **stop**).
+2. Se `b` está na janela de operação: a estratégia recebe **só a abertura de `b`** e a barra anterior fechada (`on_bar_open`) e devolve ordens. O simulador decide a execução (`select_entry`): a mercado na abertura; ordens a nível tocadas no nível (ou na abertura, se houve gap além do nível); mesmo lado na mesma barra ⇒ **pior preço**; lados opostos ⇒ prioridade declarada pela estratégia.
+3. Se entrou: `manage_entry_bar(b)` — stop avaliado pela barra inteira (hipótese adversa), alvo só a partir da barra seguinte.
+4. `on_bar_close(b)` atualiza o estado da estratégia; equity marcada no `close`.
+5. Fim do dia: limpa pendentes.
 
 SL/TP seguem ativos fora da janela (como ordens anexadas no MT5).
 
@@ -30,7 +31,7 @@ Uma barra M5 revela `open, high, low, close`, mas **não a sequência**. Consequ
 | Stop e alvo dentro do range da mesma barra | Não se sabe qual veio primeiro | Assumir **stop** (`adverse`) |
 | Duas ordens pendentes atingidas na mesma barra | Qual executou? | Escolher o **pior preço** para o lado |
 | Padrão 2: barra rompe máxima e mínima da referência | Compra ou venda? | Convenção atual = compra (`P2_AMBIGUOUS_LOW_FIRST`) — **não é conservadora por construção; revisar** |
-| Entrada por toque de nível dentro da barra | Só o toque, não o preço executável | Considerar entrada **no nível** + slippage, nunca melhor que o nível |
+| Entrada por toque de nível dentro da barra | Só o toque, não o preço executável | **Implementado (D5):** entra no **nível de toque** (ou na abertura se já houve gap além do nível), slippage contra, dentro do range da barra; nunca no `open` de uma barra cujo `high/low` disparou o sinal |
 | Entrada a mercado após sinal na barra t | Não dá para operar o close de t | Entrar na **abertura de t+1** (não no close de t) |
 
 Regra de ouro: **um sinal calculado com o close da barra t só pode ser executado a partir da barra t+1**.
@@ -42,7 +43,7 @@ Regra de ouro: **um sinal calculado com o close da barra t só pode ser executad
 - **Custos:** corretagem + emolumentos por contrato, ida e volta (`2·qtd·(comissão+taxas)` no motor).
 - **Spread:** ausente nos dados OHLC (coluna `SPREAD` do MT5 é informativa). Modelar via slippage ou usar dados com bid/ask.
 - **Fila / preenchimento parcial:** ignorados (1 contrato, alta liquidez do WDO na abertura; premissa a validar).
-- **Gaps e leilão:** a barra das 09:00 pode abrir com gap; stops de ordens pendentes podem executar **pior que o preço da ordem** (gap through). O motor atual preenche no preço da ordem — **premissa otimista a revisar**.
+- **Gaps e leilão (implementado):** stop (pendente ou de saída) executa no **pior** entre o nível e a abertura da barra; alvo/limit no melhor (fill real na abertura). Slippage é simétrico em entrada e saída, inclusive no alvo (conservador).
 
 ## 5. Integridade temporal e point-in-time
 
@@ -73,7 +74,7 @@ Resposta incerta ⇒ a feature é **insegura** e não é usada até ser verifica
 - Decisão na abertura de t usa apenas barras **fechadas** (≤ t−1). Decisão no fechamento de t usa ≤ t e executa de t+1 em diante.
 - **EMA "ao vivo" do MT5 (barra em formação):** só é reproduzível com ticks/M1. Com M5, usar candles fechados (conservador; diverge do EA) e documentar o impacto; nunca uma aproximação que use a barra inteira.
 - Indicadores vetorizados sobre a série completa só são aceitos se **comprovadamente causais** pelos testes da §11.
-- Quando o motor calcula indicadores sobre a janela recebida, o resultado das primeiras barras depende do aquecimento: definir explicitamente de onde vem o *lookback* (barras anteriores à janela) para que reavaliar uma partição não mude decisões passadas.
+- **Aquecimento (implementado):** `run_backtest` recebe histórico anterior à janela para aquecer os indicadores e **descarta barras posteriores ao fim da janela**; só se opera dentro de [início, fim]. Assim reavaliar uma partição não muda decisões passadas e o futuro nunca entra.
 
 ## 6. Rollover e série contínua
 
@@ -119,7 +120,7 @@ A pesquisa de estratégias ([06](06_quant_finance_playbook.md), [07](07_agent_pr
 **Congelamento do motor:**
 - O motor tem uma versão identificada; todo resultado registra a versão. **Nunca comparar resultados obtidos em versões diferentes do motor**: se o motor mudar, o Baseline V0 e os candidatos relevantes são reexecutados na nova versão.
 - Mudança de motor só é aceitável como **correção de erro de simulação** (ex.: R1–R5 em [08](08_roadmap_and_open_questions.md)), justificada por erro de modelagem e não por efeito no desempenho, com teste que reproduz o erro, aprovação do usuário e **nunca no mesmo experimento** que uma mudança de estratégia. O efeito no V0 é reportado como consequência, não como objetivo.
-- As correções de simulação conhecidas devem ser feitas **antes** de a Fase 1 começar, e só então o motor é congelado (portão G0 em 08).
+- **Estado (2026-09-19):** as correções do G0 (R1, R4, R8, R9, R10; ver 08) foram feitas e o motor está na versão **`ENGINE_VERSION = 1.0.0`**, protegido por `tests/test_engine_frozen.py`. Mudar comportamento exige: aprovação do usuário, nova versão, atualizar a referência desse teste e reexecutar V0 e candidatos relevantes.
 
 **Problema no motor descoberto durante a pesquisa (procedimento obrigatório):**
 1. **Parar** a pesquisa; não continuar comparando candidatos.
@@ -128,7 +129,7 @@ A pesquisa de estratégias ([06](06_quant_finance_playbook.md), [07](07_agent_pr
 4. **Pedir aprovação** ao usuário antes de mudar qualquer coisa.
 5. A correção é uma **tarefa separada** de qualquer experimento de estratégia, com teste que reproduz o erro. Depois dela, V0 e candidatos relevantes são reexecutados na nova versão; resultados anteriores ficam marcados como **obsoletos** (nunca apagados).
 
-**Separação estratégia × simulação:** hoje as regras do V0 (`start_day`, `signal`, `place_channel_orders`) vivem dentro de `WDOReplayEngine` (`src/wdo/engine.py`), então implementar um candidato exigiria editar o simulador. Isso é lacuna arquitetural: extrair a lógica de decisão para uma interface de estratégia é pré-requisito da Fase 1 (G0). Até lá, qualquer candidato que exija editar `engine.py` precisa de aprovação prévia do usuário.
+**Separação estratégia × simulação (feita em 2026-09-19):** o simulador (`engine.py`) executa qualquer `Strategy` (contrato em `strategies/base.py`); as regras do V0 vivem em `strategies/baseline_v0.py`. A estratégia só vê a abertura da barra corrente e barras já fechadas; gatilhos que dependem do range da barra chegam como ordens a nível (`stop`/`limit`), e o simulador decide se e a que preço executam. Candidatos são novos arquivos em `strategies/`; editar `engine.py` continua exigindo o procedimento acima.
 
 **Limitações do M5:** onde o OHLC M5 não reproduz o comportamento tick a tick do MT5 (toque intrabar de nível, EMAs em formação, bid/ask, fila, gaps de leilão), a limitação é **documentada** (§3–4 e R2–R5 em 08) e tratada com a premissa conservadora — nunca com uma premissa otimista que "aproxime" o EA e melhore o resultado.
 
@@ -144,3 +145,5 @@ Objetivo: provar que decisões passadas **não dependem de dados futuros**. Impl
 | **Reprodutibilidade do sinal** | Para o mesmo histórico até `T`, comparar estado e decisão gerados, independentemente do que exista depois (teste de propriedade, parametrizado em `T`) | Estado (`day_state`) e decisão idênticos |
 
 **Se um teste falhar:** investigar o vazamento **antes de continuar**. Em experimento, isso é `Look-ahead review: FAIL` e o resultado **não é aceito** ([07 §5](07_agent_protocol.md)); se a causa estiver no motor, aplicar o procedimento da §10.
+
+**Implementação:** `tests/test_leakage.py` (mutação do futuro, histórico truncado, reprodutibilidade do sinal e mutação da mesma barra, cada um com **controle negativo** que prova que o teste detecta um indicador com vazamento) e `tests/test_indicators.py` (EMA de candle fechado × EMA manual, IFR defasado, mutação e truncamento no nível dos indicadores).

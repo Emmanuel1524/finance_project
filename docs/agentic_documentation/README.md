@@ -25,7 +25,7 @@ Data de referência do snapshot: 2026-09-18. Tudo aqui foi escrito **lendo o có
 - Novas dependências: adicionar em `environment.yml` (e em `pyproject.toml` se o pacote `wdo` depender delas) **com aprovação do usuário**.
 - Em ambiente já existente, `pip install -e .` (na raiz) registra o pacote `wdo`.
 
-Verificado em 2026-09-18: `pytest -q` → 6 passed; `notebooks/01_wdo_opening_backtest.ipynb` executa de ponta a ponta sem erros neste ambiente.
+Verificado em 2026-09-19 (motor 1.0.0): `pytest -q` → 45 passed; `notebooks/01_wdo_opening_backtest.ipynb` executa de ponta a ponta sem erros neste ambiente.
 
 ## Ordem de leitura
 

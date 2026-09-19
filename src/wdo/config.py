@@ -36,6 +36,7 @@ class Config:
     commission_per_contract: float = 0.0
     fees_per_contract: float = 0.0
     initial_capital: float = 10_000.0
+    max_trades_per_day: int = 1  # regra do EA v1.35: 1 operação por dia
     # Com OHLC não se conhece a ordem dos extremos. "adverse" é obrigatório padrão.
     intrabar_policy: Literal["adverse", "stop_first", "target_first"] = "adverse"
 

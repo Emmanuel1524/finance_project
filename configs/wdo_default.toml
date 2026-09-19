@@ -1,5 +1,6 @@
-# Cenário padrão do backtest do EA de abertura do WDO (v1.35).
-# Custos, slippage e valor do ponto são PREMISSAS: confirme com a corretora antes de analisar PnL.
+# Cenário base do backtest do EA de abertura do WDO (v1.35).
+# Custos, slippage e valor do ponto são PREMISSAS PROVISÓRIAS (D6, valores comuns de mercado, NÃO verificados
+# junto à B3/corretora): substituir pelos valores reais quando informados; V0 e placar são então reexecutados.
 [backtest]
 symbol = "WDOFUT"
 quantity = 1.0
@@ -21,8 +22,19 @@ end_minute = 30
 timezone = "America/Sao_Paulo"
 tick_size = 0.5
 point_value_brl = 10.0
-slippage_points = 0.0
-commission_per_contract = 0.0
-fees_per_contract = 0.0
+slippage_points = 0.5          # por lado (entrada e saída); provisório
+commission_per_contract = 0.80  # R$ por contrato por lado; provisório (com fees = R$ 1,00/lado)
+fees_per_contract = 0.20        # R$ por contrato por lado; provisório
 initial_capital = 10000.0
+max_trades_per_day = 1        # regra do EA: 1 operação por dia
 intrabar_policy = "adverse"   # conservador; não alterar para "melhorar" resultado
+
+# Partições temporais dos dados (D1, decidido em 2026-09-19; imutáveis). Ver docs/agentic_documentation/06 §6.
+# Datas inclusivas. Validação e holdout só são acessíveis com autorização explícita (wdo.partitions).
+[partitions]
+research_start   = "2026-01-02"
+research_end     = "2026-06-30"
+validation_start = "2026-07-01"
+validation_end   = "2026-07-31"
+holdout_start    = "2026-08-03"
+holdout_end      = "2026-09-01"

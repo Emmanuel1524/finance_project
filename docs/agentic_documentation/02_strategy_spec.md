@@ -64,21 +64,21 @@ senão (entre os canais)       → Padrão 1 (toque de médias), com fallback pa
 |---|---|---|
 | Parâmetros `input` | bloco `input group` (linhas ~44–68) | `Config` |
 | Arredondar preço | `NormPreco` | `round_tick` |
-| Iniciar sessão / decidir padrão | `IniciarSessao` | `WDOReplayEngine.start_day` |
-| Ordens de canal | `ColocarOrdensCanal` | `place_channel_orders`, `process_pending` |
-| Padrões 1/2/4 por vela | `ProcessarPrimeiraVela` / `ProcessarVelaSeguinte` | `signal` |
-| Entrada a mercado | `EnviarMercado` | `enter` (aplica slippage e tick) |
-| Loop de eventos | `OnTick` | `run` (barra a barra) |
-| SL/TP | ordem com stop/alvo | `process_position` + `exit` |
-| EMAs / IFR | handles `iMA`/`iRSI` (barra em formação) | `add_point_in_time_indicators`, `rsi_wilder` |
+| Iniciar sessão / decidir padrão | `IniciarSessao` | `strategies/baseline_v0.py: BaselineV0.on_session_open` |
+| Ordens de canal | `ColocarOrdensCanal` | `BaselineV0._channel_orders` (intenções) + `engine.select_entry` (execução) |
+| Padrões 1/2/4 por vela | `ProcessarPrimeiraVela` / `ProcessarVelaSeguinte` | `BaselineV0.on_bar_open` / `on_bar_close` |
+| Entrada | `EnviarMercado` | `engine.open_position` (slippage e tick) |
+| Loop de eventos | `OnTick` | `engine.run` (barra a barra) |
+| SL/TP | ordem com stop/alvo | `engine.process_position` / `manage_entry_bar` + `exit` |
+| EMAs / IFR | handles `iMA`/`iRSI` (barra em formação) | `indicators.closed_candle_ema`, `rsi_wilder` (candles fechados) |
 
 ## Divergências conhecidas EA × Python (ver também 08)
 
 1. **EMAs H1/D1 ao vivo vs. point-in-time.** O EA lê o valor "em formação" (shift 0) a cada tick da 1ª vela; o Python usa valores fechados/defasados. Efeito: o Padrão 1 pode disparar de forma diferente.
-2. **Toque de média por preço executável (tick) vs. `low/high` da barra M5.** O Python usa `bar.low <= suporte + tolerância` na barra inteira (aproximação otimista de toque).
+2. **Toque de média por preço executável (tick) vs. `low/high` da barra M5.** O Python considera tocado o nível se o range da barra o alcança, e executa **no nível** (ou na abertura, em gap), com slippage contra (motor 1.0.0; antes entrava no `open`).
 3. **Padrão 1 só é avaliado na barra de índice 0** no Python; no EA o toque é monitorado tick a tick durante a 1ª vela.
 4. **Barra ambígua no Padrão 2** (`low <= ref.low` e `high >= ref.high` na mesma barra): Python entra **COMPRA** ("P2_AMBIGUOUS_LOW_FIRST") — decisão de convenção, não conservadora por construção. Revisar.
-5. **Execução:** entrada a mercado usa `bar.open` (barra seguinte/atual), sem spread/bid-ask.
+5. **Execução:** a mercado só quando a decisão vem de dado já conhecido (IFR do P4): entra na abertura. Gatilhos por toque entram no nível. Sem spread/bid-ask; slippage configurável.
 6. **Padrão 4 "aguarda vela":** simplificado no Python; conferir contra `ProcessarVelaSeguinte`.
 
 ## Perguntas de especificação em aberto

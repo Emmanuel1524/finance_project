@@ -8,13 +8,15 @@ Backtest/replay bar-by-bar, em Python, do EA MQL5 de abertura do WDO (mini dóla
 ├── src/wdo/                  # código reutilizável (pacote instalável)
 │   ├── config.py             #   Config (parâmetros), round_tick
 │   ├── data.py               #   loaders, validação, série contínua/rollover
-│   ├── indicators.py         #   RSI e EMAs H1/D1 point-in-time
-│   ├── engine.py             #   ordens, posição, WDOReplayEngine, run_backtest
+│   ├── indicators.py         #   RSI e EMAs H1/D1 (candles fechados, point-in-time)
+│   ├── strategies/           #   contrato Strategy + Baseline V0 (regras do EA)
+│   ├── engine.py             #   simulador (execução, gaps, custos), ENGINE_VERSION, run_backtest
+│   ├── partitions.py         #   partições de dados e guarda de acesso (pesquisa/validação/holdout)
 │   ├── metrics.py            #   métricas de desempenho
 │   └── reporting.py          #   relatório textual e gráficos
 ├── tests/                    # pytest
 ├── notebooks/                # pesquisa, validação e relatório (sem lógica de negócio)
-├── configs/wdo_default.toml  # cenário padrão (lido por Config.from_toml)
+├── configs/wdo_default.toml  # cenário base (custos provisórios) + partições de dados
 ├── data/raw/                 # dados brutos imutáveis (wdo_data.csv, export MT5 M5)
 ├── data/processed/           # dados derivados (gerado, fora do git)
 ├── reference/mt5/            # código-fonte MQL5 do EA: fonte da verdade das regras
@@ -43,11 +45,12 @@ Em um ambiente já existente, instale o pacote com `pip install -e .`.
 Uso programático:
 
 ```python
-from wdo import Config, load_mt5_export, run_backtest, print_backtest_report
+from wdo import Config, Partitions, load_partition_bars, run_partition_backtest, print_backtest_report
 
 config = Config.from_toml("configs/wdo_default.toml")
-bars = load_mt5_export("data/raw/wdo_data.csv", config.timezone)
-results = run_backtest(bars, start="2026-01-01", end="2026-09-01", config=config)
+parts = Partitions.from_toml("configs/wdo_default.toml")
+bars, _, _ = load_partition_bars("data/raw/wdo_data.csv", parts, "research", timezone=config.timezone)
+results = run_partition_backtest(bars, parts, "research", config)   # validação/holdout exigem authorized=True
 print_backtest_report(results)
 ```
 

@@ -1,32 +1,47 @@
-"""Motor de replay bar-by-bar do Robo_Abertura_WDO_Genial v1.35 (OHLC conservador e auditável).
+"""Motor de replay bar-by-bar (OHLC conservador e auditável). Executa qualquer `Strategy`.
 
-O módulo não simula ticks ou book. Toda decisão intrabar com OHLC é registrada
-e usa a ordem adversa para a estratégia quando a sequência é desconhecida.
+O módulo não simula ticks ou book. Toda decisão intrabar com OHLC é registrada e usa a ordem
+adversa para a estratégia quando a sequência é desconhecida. Regras de execução (docs 05 §3–§5):
+
+- a estratégia só vê a abertura da barra corrente e barras anteriores fechadas; gatilhos que
+  dependem do range da barra chegam como ordens a nível (`stop`/`limit`);
+- ordem a nível tocada na barra executa no nível, ou na abertura se ela já passou do nível (gap);
+  sempre com slippage contra e dentro do range OHLC;
+- várias ordens do mesmo lado tocadas na mesma barra: vale o **pior** preço; de lados opostos:
+  vale a prioridade declarada pela estratégia;
+- a barra de entrada também é processada: stop pela janela inteira (premissa adversa) e alvo só
+  a partir da barra seguinte;
+- saídas com gap: stop executa no pior entre o stop e a abertura; alvo, no melhor.
+
+`ENGINE_VERSION` identifica o simulador. Resultados só são comparáveis dentro da mesma versão;
+qualquer mudança de comportamento exige nova versão e aprovação (docs 05 §10).
 """
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Literal
 
 import pandas as pd
 
 from .config import Config, round_tick
 from .data import validate_bars
 from .indicators import add_point_in_time_indicators
+from .strategies import BarOpen, BaselineV0, OrderIntent, SessionOpen, Strategy
 
-
-@dataclass
-class PendingOrder:
-    side: int
-    kind: Literal["stop", "limit"]
-    price: float
-    tag: str
+ENGINE_VERSION = "1.0.0"
 
 
 @dataclass
 class Position:
-    trade_id: int; side: int; entry_datetime: pd.Timestamp; entry_price: float
-    quantity: float; stop_initial: float; target_initial: float; mae: float = 0.; mfe: float = 0.
+    trade_id: int
+    side: int
+    entry_datetime: pd.Timestamp
+    entry_price: float
+    quantity: float
+    stop_initial: float
+    target_initial: float
+    mae: float = 0.0
+    mfe: float = 0.0
+    entry_reason: str = ""
 
 
 @dataclass
@@ -35,143 +50,220 @@ class BacktestResults:
     equity: pd.DataFrame
     events: pd.DataFrame
     config: Config
+    engine_version: str = ENGINE_VERSION
+    strategy_name: str = ""
 
 
 class WDOReplayEngine:
-    def __init__(self, config: Config):
-        self.c = config; self.cash = config.initial_capital; self.position = None; self.pending = []
-        self.events, self.closed = [], []; self.trade_id = 0; self.day_state = None
+    def __init__(self, config: Config, strategy: Strategy | None = None):
+        self.c = config
+        self.strategy = strategy if strategy is not None else BaselineV0(config)
+        self.cash = config.initial_capital
+        self.position: Position | None = None
+        self.resting: list[OrderIntent] = []      # ordens de vida "session" (Padrão 3)
+        self.events: list[dict] = []
+        self.closed: list[dict] = []
+        self.trade_id = 0
+        self.trades_today = 0
+        self.session_active = False
+        self.prev_bar = None
+        self.prior_daily = pd.DataFrame()
 
+    # ------------------------------------------------------------------ utilidades
     def event(self, when, event, detail=""):
         self.events.append({"datetime": when, "event": event, "detail": detail})
 
     def fill(self, side: int, price: float) -> float:
+        """Preço com slippage contra `side` (compra paga mais; venda recebe menos), no tick."""
         return round_tick(price + side * self.c.slippage_points, self.c.tick_size)
 
-    def enter(self, when, side, price, reason):
-        if self.position is not None or self.day_state["operated"]: return
-        entry = self.fill(side, price); self.trade_id += 1
-        self.position = Position(self.trade_id, side, when, entry, self.c.quantity,
-                                 round_tick(entry - side*self.c.loss_points, self.c.tick_size),
-                                 round_tick(entry + side*self.c.gain_points, self.c.tick_size))
-        self.day_state["operated"] = True; self.pending.clear(); self.event(when, "ENTRY", reason)
+    # ------------------------------------------------------------------ entradas
+    @staticmethod
+    def level_fill(intent: OrderIntent, bar) -> float | None:
+        """Preço de execução de uma ordem a nível na barra; None se não foi tocada.
 
+        `stop` (rompimento): compra sobe até o nível, venda cai até o nível; se a barra já abre além
+        do nível, executa na abertura (pior). `limit` (fade): compra cai até o nível, venda sobe até
+        o nível; se a barra já abre além do nível, executa na abertura (gap real).
+        """
+        side, level = intent.side, intent.price
+        if intent.kind == "stop":
+            if side > 0:
+                return max(bar.open, level) if bar.high >= level else None
+            return min(bar.open, level) if bar.low <= level else None
+        if side > 0:
+            return min(bar.open, level) if bar.low <= level else None
+        return max(bar.open, level) if bar.high >= level else None
+
+    def select_entry(self, intents: list[OrderIntent], bar):
+        """Escolhe (intent, preço_bruto, tag) executado na barra, ou None."""
+        market = [i for i in intents if i.kind == "market"]
+        if market:
+            return market[0], bar.open, market[0].tag
+        touched = [(i, price) for i in intents if (price := self.level_fill(i, bar)) is not None]
+        if not touched:
+            return None
+        if len({i.side for i, _ in touched}) == 1:
+            side = touched[0][0].side          # mesmo lado: pior preço para quem opera
+            chosen = max(touched, key=lambda t: t[1]) if side > 0 else min(touched, key=lambda t: t[1])
+        else:
+            chosen = touched[0]                # lados opostos: prioridade da estratégia
+        intent, price = chosen
+        tag = intent.conflict_tag if len(touched) > 1 and intent.conflict_tag else intent.tag
+        return intent, price, tag
+
+    def open_position(self, when, side: int, raw_price: float, reason: str) -> Position:
+        entry = self.fill(side, raw_price)
+        self.trade_id += 1
+        self.trades_today += 1
+        self.position = Position(
+            self.trade_id, side, when, entry, self.c.quantity,
+            round_tick(entry - side * self.c.loss_points, self.c.tick_size),
+            round_tick(entry + side * self.c.gain_points, self.c.tick_size),
+            entry_reason=reason,
+        )
+        self.resting.clear()
+        self.event(when, "ENTRY", reason)
+        return self.position
+
+    def manage_entry_bar(self, bar) -> None:
+        """Barra de entrada: a ordem dos extremos é desconhecida, então vale a hipótese adversa.
+
+        Stop avaliado com a janela inteira da barra; alvo só a partir da barra seguinte; MFE só
+        conta o fechamento.
+        """
+        p = self.position
+        adverse = (p.entry_price - bar.low) if p.side > 0 else (bar.high - p.entry_price)
+        p.mae = max(p.mae, adverse, 0.0)
+        p.mfe = max(p.mfe, (bar.close - p.entry_price) * p.side, 0.0)
+        hit_stop = bar.low <= p.stop_initial if p.side > 0 else bar.high >= p.stop_initial
+        if hit_stop:
+            self.exit(bar.datetime, p.stop_initial, "STOP_LOSS_ENTRY_BAR")
+
+    # ------------------------------------------------------------------ saídas
     def exit(self, when, price, reason):
-        p = self.position; exit_price = self.fill(-p.side, price)
+        p = self.position
+        exit_price = self.fill(-p.side, price)
         gross = (exit_price - p.entry_price) * p.side * p.quantity * self.c.point_value_brl
         costs = 2 * p.quantity * (self.c.commission_per_contract + self.c.fees_per_contract)
         self.cash += gross - costs
-        self.closed.append({"trade_id": p.trade_id, "side": "LONG" if p.side > 0 else "SHORT", "entry_datetime": p.entry_datetime,
-            "entry_price": p.entry_price, "exit_datetime": when, "exit_price": exit_price, "quantity": p.quantity,
+        self.closed.append({
+            "trade_id": p.trade_id, "side": "LONG" if p.side > 0 else "SHORT",
+            "entry_datetime": p.entry_datetime, "entry_price": p.entry_price, "entry_reason": p.entry_reason,
+            "exit_datetime": when, "exit_price": exit_price, "quantity": p.quantity,
             "stop_price_inicial": p.stop_initial, "target_price_inicial": p.target_initial, "exit_reason": reason,
-            "gross_pnl": gross, "costs": costs, "net_pnl": gross-costs, "duration": when-p.entry_datetime,
-            "equity_after_trade": self.cash, "MAE": p.mae*self.c.point_value_brl*p.quantity, "MFE": p.mfe*self.c.point_value_brl*p.quantity})
-        self.event(when, "EXIT", reason); self.position = None
+            "gross_pnl": gross, "costs": costs, "net_pnl": gross - costs, "duration": when - p.entry_datetime,
+            "equity_after_trade": self.cash,
+            "MAE": p.mae * self.c.point_value_brl * p.quantity, "MFE": p.mfe * self.c.point_value_brl * p.quantity,
+        })
+        self.event(when, "EXIT", reason)
+        self.position = None
 
-    def process_position(self, bar):
+    def process_position(self, bar) -> None:
+        """Stop/alvo de uma posição aberta em barra anterior. Gap: stop pior, alvo melhor."""
         p = self.position
-        if p is None: return
+        if p is None:
+            return
         adverse = (p.entry_price - bar.low) if p.side > 0 else (bar.high - p.entry_price)
         favorable = (bar.high - p.entry_price) if p.side > 0 else (p.entry_price - bar.low)
-        p.mae = max(p.mae, adverse); p.mfe = max(p.mfe, favorable)
-        hit_stop = bar.low <= p.stop_initial if p.side > 0 else bar.high >= p.stop_initial
-        hit_target = bar.high >= p.target_initial if p.side > 0 else bar.low <= p.target_initial
-        if hit_stop and hit_target:
-            reason = "STOP_INTRABAR_AMBIGUOUS" if self.c.intrabar_policy in ("adverse", "stop_first") else "TARGET_INTRABAR_AMBIGUOUS"
-            self.exit(bar.datetime, p.stop_initial if "STOP" in reason else p.target_initial, reason)
-        elif hit_stop: self.exit(bar.datetime, p.stop_initial, "STOP_LOSS")
-        elif hit_target: self.exit(bar.datetime, p.target_initial, "TAKE_PROFIT")
-
-    def process_pending(self, bar):
-        hits = []
-        for order in self.pending:
-            hit = (order.side > 0 and ((order.kind == "stop" and bar.high >= order.price) or (order.kind == "limit" and bar.low <= order.price))) or (order.side < 0 and ((order.kind == "stop" and bar.low <= order.price) or (order.kind == "limit" and bar.high >= order.price)))
-            if hit: hits.append(order)
-        if hits:
-            # Se duas pernas forem alcançadas na mesma barra, escolhe o pior preço para o lado.
-            order = min(hits, key=lambda o:o.price) if hits[0].side > 0 else max(hits, key=lambda o:o.price)
-            self.enter(bar.datetime, order.side, order.price, f"P3_{order.tag}")
-
-    def start_day(self, day_bars):
-        first = day_bars.iloc[0]; prior = self.prior_daily.loc[:first.datetime.normalize()-pd.Timedelta(nanoseconds=1)]
-        if prior.empty: return
-        pdh, pdl = prior.iloc[-1].high, prior.iloc[-1].low
-        emas = [first[f"ema_{tf}_{n}"] for tf in ("h1", "d1") for n in (13,17,21)]
-        if any(pd.isna(emas)) or pd.isna(first.rsi): return
-        self.day_state = {"date": first.datetime.date(), "operated": False, "pattern": 0, "direction": 0, "reference": None,
-                          "pdh": pdh, "pdl": pdl, "sup": round_tick(pdh-self.c.channel_offset,self.c.tick_size), "inf": round_tick(pdl+self.c.channel_offset,self.c.tick_size),
-                          "ema_support": max((x for x in emas if x <= first.open), default=0.), "ema_resistance": min((x for x in emas if x >= first.open), default=0.), "open_rsi": first.rsi}
-        # Uma posição herdada mantém seus SL/TP na corretora; não abre outra hoje.
-        if self.position is not None:
-            self.day_state["operated"] = True
-            self.event(first.datetime, "SESSION", "POSITION_CARRIED")
-            return
-        s = self.day_state; op = first.open
-        if op > s["pdh"]: s.update(pattern=4,direction=-1,wait=first.rsi > self.c.rsi_sell_max)
-        elif op < s["pdl"]: s.update(pattern=4,direction=1,wait=first.rsi < self.c.rsi_buy_min)
-        elif op >= s["sup"]: s.update(pattern=3,direction=-1); self.place_channel_orders(-1)
-        elif op <= s["inf"]: s.update(pattern=3,direction=1); self.place_channel_orders(1)
+        p.mae, p.mfe = max(p.mae, adverse), max(p.mfe, favorable)
+        if p.side > 0:
+            hit_stop, hit_target = bar.low <= p.stop_initial, bar.high >= p.target_initial
+            stop_price, target_price = min(bar.open, p.stop_initial), max(bar.open, p.target_initial)
         else:
-            s["pattern"] = 1; s["direction"] = 1 if op > max(emas) else -1 if op < min(emas) else 0
-        self.event(first.datetime, "SESSION", f"P{s['pattern']}")
+            hit_stop, hit_target = bar.high >= p.stop_initial, bar.low <= p.target_initial
+            stop_price, target_price = max(bar.open, p.stop_initial), min(bar.open, p.target_initial)
+        if hit_stop and hit_target:
+            if self.c.intrabar_policy in ("adverse", "stop_first"):
+                self.exit(bar.datetime, stop_price, "STOP_INTRABAR_AMBIGUOUS")
+            else:
+                self.exit(bar.datetime, target_price, "TARGET_INTRABAR_AMBIGUOUS")
+        elif hit_stop:
+            self.exit(bar.datetime, stop_price, "STOP_LOSS")
+        elif hit_target:
+            self.exit(bar.datetime, target_price, "TAKE_PROFIT")
 
-    def place_channel_orders(self, side):
-        s=self.day_state
-        stop = s["sup"]-self.c.breakout_points if side < 0 else s["inf"]+self.c.breakout_points
-        limit = s["pdh"]+self.c.breakout_points if side < 0 else s["pdl"]-self.c.breakout_points
-        if self.c.channel_mode in (0,1): self.pending.append(PendingOrder(side,"stop",round_tick(stop,self.c.tick_size),"STOP"))
-        if self.c.channel_mode in (0,2): self.pending.append(PendingOrder(side,"limit",round_tick(limit,self.c.tick_size),"LIMIT"))
+    # ------------------------------------------------------------------ sessão
+    def start_session(self, session: pd.DataFrame) -> bool:
+        """Consulta a estratégia com o que é conhecido antes da 1ª barra. False = dia sem dados prontos."""
+        first = session.iloc[0]
+        prior = self.prior_daily.loc[: first.datetime.normalize() - pd.Timedelta(nanoseconds=1)]
+        if prior.empty:
+            return False
+        emas = tuple(first[f"ema_{tf}_{n}"] for tf in ("h1", "d1") for n in (13, 17, 21))
+        if any(pd.isna(value) for value in emas) or pd.isna(first.rsi):
+            return False
+        ctx = SessionOpen(first.datetime.date(), first.open, prior.iloc[-1].high, prior.iloc[-1].low,
+                          emas, first.rsi, self.position is not None)
+        decision = self.strategy.on_session_open(ctx)
+        self.resting = [o for o in decision.orders]
+        self.trades_today = self.c.max_trades_per_day if decision.stand_down else 0
+        self.event(first.datetime, "SESSION", decision.label)
+        return True
 
-    def signal(self, bar, index_in_session):
-        s=self.day_state
-        if s is None or s["operated"]: return
-        if s["pattern"] == 1 and index_in_session == 0:
-            sup,res=s["ema_support"],s["ema_resistance"]
-            buy = sup and bar.low <= round_tick(sup,self.c.tick_size)+self.c.ema_touch_tolerance
-            sell = res and bar.high >= round_tick(res,self.c.tick_size)-self.c.ema_touch_tolerance
-            if buy and sell: self.enter(bar.datetime, 1 if abs(bar.open-sup)<=abs(res-bar.open) else -1, bar.open, "P1_EMA_DOUBLE")
-            elif buy: self.enter(bar.datetime,1,bar.open,"P1_EMA")
-            elif sell: self.enter(bar.datetime,-1,bar.open,"P1_EMA")
-            return
-        if s["pattern"] == 1 and index_in_session == 1:
-            s["pattern"] = 2; s["reference"] = self.previous_bar
-        if s["pattern"] == 2 and s["reference"] is not None:
-            ref=s["reference"]
-            if bar.low <= ref.low and bar.high >= ref.high: self.enter(bar.datetime,1,bar.open,"P2_AMBIGUOUS_LOW_FIRST")
-            elif bar.low <= ref.low: self.enter(bar.datetime,1,bar.open,"P2_LOW")
-            elif bar.high >= ref.high: self.enter(bar.datetime,-1,bar.open,"P2_HIGH")
-            else: s["reference"] = bar
-        elif s["pattern"] == 4:
-            immediate=(s["direction"]>0 and self.c.rsi_buy_min<=s["open_rsi"]<=self.c.rsi_buy_max) or (s["direction"]<0 and self.c.rsi_sell_min<=s["open_rsi"]<=self.c.rsi_sell_max)
-            crossed=(s["direction"]>0 and not s["wait"] and bar.rsi<=self.c.rsi_buy_max) or (s["direction"]<0 and not s["wait"] and bar.rsi>=self.c.rsi_sell_min)
-            if immediate or crossed: self.enter(bar.datetime,s["direction"],bar.open,"P4_RSI")
-            elif index_in_session >= 1 and s["wait"]:
-                ref=self.previous_bar
-                if bar.low<=ref.low or bar.high>=ref.high: self.enter(bar.datetime,s["direction"],bar.open,"P4_WAIT_REFERENCE")
+    def process_session_bar(self, bar, index: int) -> bool:
+        """Decisão e execução de entrada na barra de sessão. Retorna True se entrou."""
+        if self.position is not None or self.trades_today >= self.c.max_trades_per_day:
+            return False
+        view = BarOpen(bar.datetime, bar.open, bar.rsi, index, self.prev_bar)
+        intents = list(self.resting) + list(self.strategy.on_bar_open(view))
+        chosen = self.select_entry(intents, bar)
+        if chosen is None:
+            return False
+        intent, raw_price, tag = chosen
+        self.open_position(bar.datetime, intent.side, raw_price, tag)
+        self.manage_entry_bar(bar)
+        return True
 
-    def run(self, bars: pd.DataFrame) -> BacktestResults:
-        data=add_point_in_time_indicators(validate_bars(bars,self.c.timezone),self.c)
-        daily=data.set_index("datetime").resample("1D").agg(high=("high","max"),low=("low","min")).dropna(); self.prior_daily=daily
-        equities=[]; self.previous_bar=None
-        for date, day in data.groupby(data.datetime.dt.date, sort=True):
-            session=day[(day.datetime.dt.hour*60+day.datetime.dt.minute >= self.c.start_hour*60+self.c.start_minute) & (day.datetime.dt.hour*60+day.datetime.dt.minute < self.c.end_hour*60+self.c.end_minute)]
-            if not session.empty: self.start_day(session)
-            session_positions = {timestamp: i for i, timestamp in enumerate(session.datetime)}
+    # ------------------------------------------------------------------ replay
+    def run(self, bars: pd.DataFrame, trade_start=None, trade_end=None) -> BacktestResults:
+        """Replay. `bars` pode incluir histórico anterior a `trade_start` (aquecimento dos indicadores);
+        só se opera dentro de [trade_start, trade_end]. Nunca passe barras posteriores a `trade_end`."""
+        data = add_point_in_time_indicators(validate_bars(bars, self.c.timezone), self.c)
+        self.prior_daily = data.set_index("datetime").resample("1D").agg(high=("high", "max"), low=("low", "min")).dropna()
+        trade_data = data
+        if trade_start is not None:
+            trade_data = trade_data[trade_data.datetime >= trade_start]
+        if trade_end is not None:
+            trade_data = trade_data[trade_data.datetime <= trade_end]
+
+        equities = []
+        minutes = trade_data.datetime.dt.hour * 60 + trade_data.datetime.dt.minute
+        in_window = (minutes >= self.c.start_hour * 60 + self.c.start_minute) & (minutes < self.c.end_hour * 60 + self.c.end_minute)
+        for _, day in trade_data.groupby(trade_data.datetime.dt.date, sort=True):
+            session = day[in_window.loc[day.index]]
+            self.session_active = (not session.empty) and self.start_session(session)
+            session_index = {ts: i for i, ts in enumerate(session.datetime)}
             for bar in day.itertuples(index=False):
-                # SL/TP seguem ativos fora da janela, como ordens anexadas pelo MT5.
-                self.process_position(bar)
-                if bar.datetime in session_positions and self.day_state is not None:
-                    i = session_positions[bar.datetime]
-                    self.process_pending(bar); self.signal(bar,i)
-                unrealized=0 if self.position is None else (bar.close-self.position.entry_price)*self.position.side*self.position.quantity*self.c.point_value_brl
-                equities.append({"datetime":bar.datetime,"equity":self.cash+unrealized,"cash":self.cash,"in_position":self.position is not None})
-                if bar.datetime in session_positions: self.previous_bar=bar
-            self.pending.clear(); self.day_state=None
-        if self.position is not None: self.exit(data.iloc[-1].datetime,data.iloc[-1].close,"END_OF_DATA")
-        return BacktestResults(pd.DataFrame(self.closed),pd.DataFrame(equities),pd.DataFrame(self.events),self.c)
+                self.process_position(bar)     # SL/TP seguem ativos fora da janela (ordens anexadas)
+                index = session_index.get(bar.datetime)
+                entered = False
+                if index is not None and self.session_active:
+                    entered = self.process_session_bar(bar, index)
+                unrealized = 0.0
+                if self.position is not None:
+                    unrealized = (bar.close - self.position.entry_price) * self.position.side * self.position.quantity * self.c.point_value_brl
+                equities.append({"datetime": bar.datetime, "equity": self.cash + unrealized, "cash": self.cash,
+                                 "in_position": self.position is not None})
+                if index is not None:
+                    if self.session_active:
+                        self.strategy.on_bar_close(bar, entered=entered)
+                    self.prev_bar = bar
+            self.resting.clear()
+            self.session_active = False
+        if self.position is not None and not trade_data.empty:
+            self.exit(trade_data.iloc[-1].datetime, trade_data.iloc[-1].close, "END_OF_DATA")
+        return BacktestResults(pd.DataFrame(self.closed), pd.DataFrame(equities), pd.DataFrame(self.events),
+                               self.c, ENGINE_VERSION, self.strategy.name)
 
 
-def run_backtest(bars: pd.DataFrame, start="2026-01-01", end="2026-09-01", initial_capital=10_000, config: Config | None=None) -> BacktestResults:
+def run_backtest(bars: pd.DataFrame, start="2026-01-01", end="2026-09-01", initial_capital=10_000,
+                 config: Config | None = None, strategy: Strategy | None = None) -> BacktestResults:
+    """Replay no intervalo [start, end]. `bars` pode ter histórico anterior a `start` (aquecimento) mas
+    as barras posteriores a `end` são descartadas aqui: o futuro nunca entra no cálculo."""
     config = config or Config(initial_capital=initial_capital)
-    data=validate_bars(bars,config.timezone); begin=pd.Timestamp(start,tz=config.timezone); finish=pd.Timestamp(end,tz=config.timezone)+pd.Timedelta(days=1)-pd.Timedelta(minutes=5)
-    return WDOReplayEngine(config).run(data[(data.datetime>=begin)&(data.datetime<=finish)].copy())
+    data = validate_bars(bars, config.timezone)
+    begin = pd.Timestamp(start, tz=config.timezone)
+    finish = pd.Timestamp(end, tz=config.timezone) + pd.Timedelta(days=1) - pd.Timedelta(minutes=5)
+    history = data[data.datetime <= finish].copy()
+    return WDOReplayEngine(config, strategy).run(history, trade_start=begin, trade_end=finish)

@@ -88,7 +88,7 @@ Overfitting review:
 7. **Placar top 3 (D3):** experimento KEEP que passa nos portões é comparado com os do placar segundo [06 §5](06_quant_finance_playbook.md); se for melhor, entra e o pior sai. Registrar a entrada/saída e o motivo (dimensão a dimensão) em `experiments/leaderboard.md`.
 8. **Próximo experimento** deve testar uma hipótese materialmente diferente, salvo REFINE justificado.
 
-Limiares numéricos (nº mínimo de trades, drawdown máximo, concentração máxima de PnL etc.) são decisão do usuário (D3, 08). Até lá, o agente aplica os critérios de forma **qualitativa e conservadora**, declara a incerteza e não inventa limiares.
+Limiares numéricos dos portões: **aprovados em D3** ([06 §5](06_quant_finance_playbook.md): ≥ 30 trades; drawdown ≤ 15% do capital; top 5 trades ≤ 40% do lucro bruto; nenhum mês > 40% do lucro total; expectância > 0 após custos). São fixos: mudá-los exige o usuário e nunca é feito depois de ver resultados.
 
 ## 6. Orçamento de pesquisa e escalonamento
 
