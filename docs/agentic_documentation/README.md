@@ -16,7 +16,7 @@ Data de referência do snapshot: 2026-09-18. Tudo aqui foi escrito **lendo o có
   ```
 - **Executar o notebook headless (sem abrir Jupyter)** — chame o `nbconvert` do próprio ambiente, senão o `jupyter` do PATH pode ser o do `.venv` e o kernel morre:
   ```bash
-  E=/c/Users/EmmanuelSilv_41llm/miniconda3/envs/wdo-backtest
+  E="$(conda info --base)/envs/wdo-backtest"   # caminho do ambiente conda wdo-backtest (Windows/Git Bash: use o equivalente /c/Users/<usuario>/miniconda3/envs/wdo-backtest)
   export PATH="$E:$E/Scripts:$E/Library/bin:$PATH"; unset VIRTUAL_ENV
   python -m nbconvert --to notebook --execute notebooks/01_wdo_opening_backtest.ipynb \
       --ExecutePreprocessor.kernel_name=wdo-backtest --output-dir outputs/notebooks
