@@ -1,0 +1,28 @@
+# Cenário padrão do backtest do EA de abertura do WDO (v1.35).
+# Custos, slippage e valor do ponto são PREMISSAS: confirme com a corretora antes de analisar PnL.
+[backtest]
+symbol = "WDOFUT"
+quantity = 1.0
+gain_points = 6.0
+loss_points = 10.0
+channel_offset = 7.0
+breakout_points = 0.5
+channel_mode = 0              # 0 stop+fade | 1 só stop | 2 só fade
+rsi_period = 7
+rsi_buy_min = 10.0
+rsi_buy_max = 16.0
+rsi_sell_min = 86.0
+rsi_sell_max = 90.0
+ema_touch_tolerance = 1.0
+start_hour = 9
+start_minute = 0
+end_hour = 10
+end_minute = 30
+timezone = "America/Sao_Paulo"
+tick_size = 0.5
+point_value_brl = 10.0
+slippage_points = 0.0
+commission_per_contract = 0.0
+fees_per_contract = 0.0
+initial_capital = 10000.0
+intrabar_policy = "adverse"   # conservador; não alterar para "melhorar" resultado

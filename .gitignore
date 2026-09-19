@@ -1,0 +1,16 @@
+# ambientes
+.venv/
+# python
+__pycache__/
+*.py[cod]
+*.egg-info/
+# jupyter
+.ipynb_checkpoints/
+# artefatos gerados
+outputs/*
+!outputs/.gitkeep
+data/processed/*
+!data/processed/.gitkeep
+# segredos
+.env
+.pytest_cache/

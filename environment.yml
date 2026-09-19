@@ -1,0 +1,16 @@
+name: wdo-backtest
+channels:
+  - conda-forge
+dependencies:
+  - python=3.12
+  - pandas>=2.1
+  - numpy>=1.26
+  - matplotlib>=3.8
+  - jupyter
+  - ipykernel
+  - nbformat>=5.9
+  - nbconvert
+  - pytest>=8.0
+  - pip
+  - pip:
+      - -e .   # instala o pacote `wdo` (src/wdo) em modo editável
